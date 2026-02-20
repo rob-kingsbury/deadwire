@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:projectzomboid.com)",
+      "WebFetch(domain:pzwiki.net)"
+    ]
+  }
+}

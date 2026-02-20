@@ -1,91 +1,112 @@
-# Deadwire Session Handoff
+# Deadwire - Handoff
 
-## What Was Done
+## Current Priority
 
-### Session 1 (2026-02-20)
+**Phase 1 MVP — Sprint 1: Foundation**
 
-**Design review + project creation + research + implementation planning.**
+Project has design doc and implementation plan complete. No Lua code written yet. Next step is mod scaffolding and core systems.
 
-1. Read the full Deadwire design document (~3000 words)
-2. Created GitHub repo: https://github.com/rob-kingsbury/deadwire
-3. Set up PZ mod directory structure with `mod.info` for B42
-4. Wrote condensed design document (`docs/DESIGN.md`)
-5. Ran 5 parallel Opus research agents investigating B42 modding:
-   - Lua API (zombie manipulation, IsoObjects, tile detection, sound events)
-   - Crafting system (craftRecipe format, items, loot tables, magazines)
-   - Electrical system (generators, batteries, power grid)
-   - Multiplayer architecture (client/server separation, sync, anti-cheat)
-   - Existing mod patterns (Spear Traps, barbed wire, alarms, ModOptions)
-6. Wrote comprehensive implementation plan (`docs/IMPLEMENTATION-PLAN.md`)
-7. Researched camouflage system feasibility (1 additional research agent):
-   - Confirmed `setAlphaAndTarget(float)` works per-client for MP visibility
-   - Confirmed Foraging skill is the right detection gate
-   - Designed scaling detection (not binary) with SandboxVars thresholds
-8. Added camouflage system to Phase 1 MVP
-9. Designed 73 SandboxVars across 9 settings pages for server customization
-10. Updated all documentation and README
+---
 
-### Commits
+## Status
 
-- `fe094d7` - Initial project scaffolding and design document
-- `53d15c2` - Add comprehensive implementation plan based on B42 API research
-- `[pending]` - Add camouflage system, sandbox options, and handoff
+| Area | Status | Notes |
+|------|--------|-------|
+| Design Document | Done | `docs/DESIGN.md` |
+| Implementation Plan | Done | `docs/IMPLEMENTATION-PLAN.md` |
+| Mod Scaffolding | Not Started | mod.info, directory structure, Config.lua |
+| Sprint 1 (Foundation) | Not Started | WireNetwork, Detection, ServerCommands, EventHandlers |
+| Sprint 2 (Placement) | Not Started | ISBuildingObject, context menus, timed actions |
+| Sprint 3 (Sound+Trigger) | Not Started | Handlers, loot, items, recipes |
+| Sprint 4 (Camo+Config) | Not Started | CamoVisibility, SandboxVars, ModOptions |
+| Phase 2 (Pull-Alarms) | Not Started | Tier 2 |
+| Phase 3 (Electric) | Not Started | Tier 3 |
+| Phase 4 (Advanced) | Not Started | Tier 4 |
+
+---
+
+## Blockers
+
+None currently.
+
+---
 
 ## Key Technical Decisions
 
-| Decision | Rationale |
-|---|---|
-| `OnZombieUpdate` + hash-table | Only proven pattern for tile detection. O(1) lookup. |
-| `IsoThumpable` per-tile | Vanilla barbed wire uses this exact pattern. |
-| `module Base` | Custom modules broken in B42 MP. |
-| Legacy generator system | Component/wiring system not fully implemented in B42. |
-| `setAlphaAndTarget()` for camo | Global alpha (no playerIndex) operates per-client in network MP. |
-| SandboxVars over ModOptions | Gameplay values must be server-synced. ModOptions is client-only. |
-| Camouflage in Phase 1 | Highest MP value feature, minimal additional code (~260 lines). |
+| Decision | Rationale | Date |
+|----------|-----------|------|
+| `OnZombieUpdate` + hash-table | Only proven pattern for tile detection. O(1) lookup. | 2026-02-20 |
+| `IsoThumpable` per-tile | Vanilla barbed wire uses this exact pattern. | 2026-02-20 |
+| `module Base` | Custom modules broken in B42 MP. | 2026-02-20 |
+| Legacy generator system | Component/wiring system not fully implemented in B42. | 2026-02-20 |
+| `setAlphaAndTarget()` for camo | Global alpha operates per-client in network MP. | 2026-02-20 |
+| SandboxVars over ModOptions | Gameplay values must be server-synced. ModOptions is client-only. | 2026-02-20 |
+| Camouflage in Phase 1 | Highest MP value feature, minimal additional code (~260 lines). | 2026-02-20 |
+| `deadwire:tagname` namespace | Required since 42.13. | 2026-02-20 |
 
-## What's Next
+---
 
-### To start implementation, open a new session and say:
+## Files Modified (Session 2)
 
-```
-Continue working on Deadwire. Start Sprint 1: Foundation.
-Read docs/IMPLEMENTATION-PLAN.md for the full plan.
-```
+| File | Changes |
+|------|---------|
+| `.claude/context.md` | Created: project state with YAML header |
+| `.claude/settings.json` | Created: WebFetch permissions for PZ domains |
+| `.claude/rules/development-workflow.md` | Created: PZ-specific workflow rules |
+| `.claude/skills/session-start/SKILL.md` | Created: session initialization skill |
+| `.claude/skills/handoff/SKILL.md` | Created: session handoff skill |
+| `CLAUDE.md` | Created: project config with session start/end |
+| `HANDOFF.md` | Restructured: added status table, blockers, decisions |
 
-### Sprint 1 tasks (Foundation):
-1. Create the B42 mod folder structure under `Contents/mods/Deadwire/42/`
-2. Write `Config.lua` (constants, wire type definitions)
-3. Write `WireNetwork.lua` (hash-table tile index)
-4. Write `Detection.lua` (OnZombieUpdate + OnPlayerUpdate detection)
-5. Write `ServerCommands.lua` (OnClientCommand dispatcher)
-6. Write `EventHandlers.lua` (OnServerCommand listener)
+---
+
+## Session History
+
+### Session 2 (2026-02-20): Session workflow infrastructure
+
+- Created session-start and handoff skills (adapted from AITA)
+- Created CLAUDE.md, context.md, development-workflow.md
+- Structured HANDOFF.md with status table (adapted from gen-network)
+- Added mod sync rule for PZ testing
+
+### Session 1 (2026-02-20): Research + Planning
+
+- Created GitHub repo and project scaffolding
+- Ran 6 parallel research agents on B42 modding APIs
+- Wrote full implementation plan with code examples
+- Designed camouflage system (per-client alpha via Foraging skill)
+- Designed 73 SandboxVars across 9 settings pages
+- Commits: `fe094d7`, `53d15c2`, `33a6744`
+
+---
+
+## Next Steps
+
+1. Mod scaffolding: `mod.info`, directory structure under `Contents/mods/Deadwire/42/`
+2. `Config.lua`: Constants, wire type definitions
+3. `WireNetwork.lua`: Hash-table tile index (shared)
+4. `Detection.lua`: `OnZombieUpdate` + `OnPlayerUpdate`
+5. `ServerCommands.lua`: `OnClientCommand` dispatcher
+6. `EventHandlers.lua`: `OnServerCommand` listener
 7. Test: hardcode a wire tile, walk zombie into it, verify detection fires
 
-### Full sprint plan:
-- Sprint 1: Foundation (detection + networking)
-- Sprint 2: Placement system (ISBuildingObject + context menus)
-- Sprint 3: Sound + trigger mechanics
-- Sprint 4: Camouflage + SandboxVars + polish
-- Ship Phase 1 MVP to Workshop
-- Sprints 5-7: Phases 2-4
+---
 
-## Files In This Repo
+## Research References
 
-| File | Purpose |
-|---|---|
-| `mod.info` | PZ mod metadata (B42+) |
-| `README.md` | Project overview |
-| `HANDOFF.md` | This file |
-| `docs/DESIGN.md` | Condensed game design document |
-| `docs/IMPLEMENTATION-PLAN.md` | Full technical plan with code examples, 73 SandboxVars, architecture |
-
-## Research Artifacts
-
-The research findings from 6 parallel agents are not saved as files but are fully incorporated into `IMPLEMENTATION-PLAN.md`. Key references:
-
-- [Spear Traps source (GPL)](https://github.com/quarantin/zomboid-spear-traps) -- tile detection pattern
+- [Spear Traps source](https://github.com/quarantin/zomboid-spear-traps) -- tile detection pattern
 - [Vanilla ISBarbedWire.lua](https://github.com/Project-Zomboid-Community-Modding/ProjectZomboid-Vanilla-Lua) -- placement pattern
 - [Konijima PZ-BaseMod](https://github.com/Konijima/PZ-BaseMod) -- MP command pattern
 - [Immersive Solar Arrays](https://github.com/radx5Blue/ImmersiveSolarArrays) -- custom power system
 - [PZEventDoc](https://github.com/demiurgeQuantified/PZEventDoc) -- B42 event list
 - [B42 Mod Template](https://github.com/LabX1/ProjectZomboid-Build42-ModTemplate) -- folder structure
+
+---
+
+## To Resume
+
+```
+Deadwire — Start Phase 1 Sprint 1 (Foundation).
+Design and implementation plan complete, no code written yet.
+Read CLAUDE.md and .claude/context.md for full project context.
+```

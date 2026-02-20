@@ -3,8 +3,8 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric livestock fencing for Project Zomboid (B42+)
-last_session: 0
-continue_with: "Phase 1 MVP — mod scaffolding and core systems (Sprint 1)"
+last_session: 2
+continue_with: "Phase 1 MVP — Sprint 1: Foundation (mod scaffolding + core systems)"
 
 tech:
   stack: pz-lua-mod
@@ -114,9 +114,18 @@ Communication: Client `sendClientCommand` → Server validates + executes → `s
 
 ## Recent Changes
 
+### Session 2 (2026-02-20): Session workflow infrastructure
+- Created `.claude/` directory with context.md, settings.json, rules/
+- Created `/session-start` skill (adapted from AITA)
+- Created `/handoff` skill (adapted from AITA)
+- Created `CLAUDE.md` with session start/end requirements, mod sync rule
+- Created `HANDOFF.md` with structured status table (adapted from gen-network)
+- Created `.claude/rules/development-workflow.md` with PZ-specific workflow
+- Files created: 7 new files in `.claude/`, `CLAUDE.md`, updated `HANDOFF.md`
+
 ### Session 1 (2026-02-20): Research + Planning
 - Created repo, ran 6 parallel research agents on B42 modding APIs
 - Wrote full implementation plan with code examples
 - Designed camouflage system (per-client alpha via Foraging skill)
 - Designed 73 SandboxVars for server customization
-- Next: Sprint 1 (Foundation)
+- Commits: `fe094d7`, `53d15c2`, `33a6744`
