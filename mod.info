@@ -1,0 +1,7 @@
+name=Deadwire
+id=Deadwire
+description=Perimeter trip lines and electric livestock fencing for base defense. Tiered progression from tin-can alarms to electrified wire. Period-accurate 1993 rural Kentucky technology.
+poster=poster.png
+require=
+modversion=0.1.0
+versionMin=42.0.0
