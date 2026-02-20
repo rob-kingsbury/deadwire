@@ -92,6 +92,8 @@ deadwire/
               ClientCommands.lua      # sendClientCommand wrappers
               EventHandlers.lua       # OnServerCommand listener, visual/audio
               ModOptions.lua          # PZAPI.ModOptions client preferences
+              CamoVisibility.lua      # Per-client alpha control based on Foraging
+              CamoActions.lua         # Camouflage/disarm/step-over timed actions
           server/
             Deadwire/
               ServerCommands.lua      # OnClientCommand listener, validation
@@ -99,6 +101,7 @@ deadwire/
               Detection.lua           # OnZombieUpdate tile detection
               PowerManager.lua        # Electric fence power drain
               LootDistribution.lua    # ProceduralDistributions additions
+              CamoDegradation.lua     # Rain/trigger camouflage durability
         scripts/
           deadwire_items.txt          # Item definitions
           deadwire_recipes.txt        # craftRecipe definitions
@@ -510,11 +513,14 @@ Events.OnServerCommand.Add(onServerCommand)
 | `server/Deadwire/LootDistribution.lua` | Bell spawn tables | ~40 |
 | `server/Deadwire/handlers/TripLineHandler.lua` | Tin can trigger logic | ~50 |
 | `server/Deadwire/handlers/ReinforcedHandler.lua` | Wire+bell trigger logic | ~60 |
+| `client/Deadwire/CamoVisibility.lua` | Client-side alpha control per Foraging level | ~120 |
+| `client/Deadwire/CamoActions.lua` | Camouflage/disarm/step-over timed actions | ~80 |
+| `server/Deadwire/CamoDegradation.lua` | Rain/trigger camouflage durability loss | ~60 |
 | `scripts/deadwire_items.txt` | Item definitions | ~30 |
 | `scripts/deadwire_recipes.txt` | craftRecipe definitions | ~60 |
-| `sandbox-options.txt` | SandboxVars | ~30 |
-| `shared/Translate/EN/*.txt` | Translation files (3) | ~40 |
-| **Total** | | **~1,600** |
+| `sandbox-options.txt` | SandboxVars (73 options across 9 pages) | ~200 |
+| `shared/Translate/EN/*.txt` | Translation files (4: items, recipes, sandbox, UI) | ~120 |
+| **Total** | | **~1,860** |
 
 ### Phase 1 Test Plan
 
@@ -525,6 +531,11 @@ Events.OnServerCommand.Add(onServerCommand)
 5. **MP sync**: Two players. Player A places wire. Player B sees it. Zombie triggers it. Both players hear sound.
 6. **Destruction**: Zombie horde attacks wire. Verify IsoThumpable health decrements and wire breaks.
 7. **SandboxVars**: Change sound radius in server settings. Verify new values apply.
+8. **Camouflage**: Apply camouflage to wire. Verify invisible to low-Foraging player, visible to high-Foraging player.
+9. **Camo MP**: Two players with different Foraging levels. Verify independent visibility per client.
+10. **Camo degradation**: Camouflage wire, wait for rain. Verify durability drops and wire becomes visible.
+11. **Camo interaction**: High-Foraging player right-clicks camouflaged wire. Verify "Step Over" and "Disarm" options appear.
+12. **Camo owner/faction**: Verify placer always sees own wires. Verify faction members see faction wires.
 
 ---
 
@@ -809,16 +820,297 @@ When barbed wire fence is also part of an electric network:
 
 ---
 
+## Camouflage System (Phase 1 — Ships with MVP)
+
+### Overview
+
+Players can camouflage any placed trip wire using foraged materials (twigs, branches). Camouflaged wires are invisible to players below a Foraging skill threshold. This is the headline MP/PvP feature -- it turns perimeter alarms from "visible deterrent" into "hidden intelligence network."
+
+### Technical Approach
+
+**Confirmed API**: `IsoObject:setAlphaAndTarget(float)` sets rendering opacity on the **local client's renderer**. Each client runs its own Lua independently. No playerIndex needed for network MP -- the global `setAlpha(float)` overload operates per-client.
+
+**Architecture**: Server stores `isCamouflaged = true` in wire ModData. Each client runs a throttled `OnTick` handler (every 30 ticks) that checks the local player's Foraging level against nearby camouflaged wires and sets alpha accordingly. The existing wire tile hash-table (WireNetwork) already tracks all wire positions -- adding a `camouflaged` flag is one extra field.
+
+### Detection Scaling (Not Binary)
+
+| Foraging Level | Visibility | Alpha | Detection Range |
+|---|---|---|---|
+| 0-2 | Invisible | 0.0 | 0 tiles (trip it blind) |
+| 3-4 | Faint shimmer | 0.15 | 3 tiles (easy to miss) |
+| 5-6 | Semi-visible | 0.4 | 8 tiles (avoidable if alert) |
+| 7+ | Clear + orange outline | 0.8 | 15 tiles (spot at a glance) |
+
+All thresholds configurable via SandboxVars.
+
+### Camouflage Application
+
+- Right-click placed wire -> "Camouflage" (requires 3x Twigs or 2x TreeBranch in inventory)
+- Timed action (~60 ticks), gated behind Trapping 2 or Foraging 2
+- Consumes materials on completion
+- Server sets `isCamouflaged = true` + `dw_camo_durability = 100` in ModData
+- Broadcasts to all clients via `sendServerCommand`
+
+### Camouflage Degradation
+
+- Rain degrades camouflage: checked on `EveryOneMinute`, if `isRaining()`, decrement `dw_camo_durability` by `SandboxVars.Deadwire.CamoRainDegradeRate`
+- When durability hits 0, `isCamouflaged` flips to false, clients update visibility
+- Zombie contact also degrades: each trigger reduces durability by `SandboxVars.Deadwire.CamoTriggerDegrade`
+- Heavy rain (storms) degrades faster: multiply by `SandboxVars.Deadwire.CamoStormMultiplier`
+
+### Interaction Rules
+
+- Players who CAN see a camouflaged wire (Foraging >= threshold) get right-click -> "Disarm" or "Step Over"
+- "Step Over": instant, no trigger, requires detection
+- "Disarm": timed action, recovers wire kit, requires Trapping 2
+- Players who CANNOT see it: no context menu options (alpha 0 = no interaction)
+- Even at alpha 0, the wire still triggers on tile entry (server doesn't care about client visibility)
+
+### Client-Side Visibility Handler
+
+```lua
+-- client/Deadwire/CamoVisibility.lua
+local CamoVisibility = {}
+local CHECK_INTERVAL = 30  -- Every 30 ticks (~0.5s)
+local tickCounter = 0
+
+-- Thresholds from SandboxVars (cached on load)
+local THRESHOLDS = {}  -- populated from Config.lua + SandboxVars
+
+function CamoVisibility.onTick()
+    tickCounter = tickCounter + 1
+    if tickCounter < CHECK_INTERVAL then return end
+    tickCounter = 0
+
+    local player = getPlayer()
+    if not player then return end
+
+    local foragingLevel = player:getPerkLevel(Perks.Foraging)
+    local px, py, pz = player:getX(), player:getY(), player:getZ()
+    local range = 20  -- Max render range for camo checks
+
+    -- Iterate ONLY known camouflaged tiles (from WireNetwork index)
+    for key, wire in pairs(WireNetwork.getCamoTiles()) do
+        local dx = math.abs(wire.x - px)
+        local dy = math.abs(wire.y - py)
+
+        if dx <= range and dy <= range and wire.z == pz then
+            local obj = wire.isoObject
+            if obj then
+                local alpha, outline = CamoVisibility.getVisibility(foragingLevel, dx, dy)
+                obj:setAlphaAndTarget(alpha)
+                if outline then
+                    obj:setOutlineHighlight(true)
+                    obj:setOutlineHighlightCol(1.0, 0.5, 0.0, 0.5)
+                else
+                    obj:setOutlineHighlight(false)
+                end
+            end
+        end
+    end
+end
+
+function CamoVisibility.getVisibility(foragingLevel, dx, dy)
+    local dist = math.sqrt(dx * dx + dy * dy)
+    local t = THRESHOLDS
+
+    if foragingLevel >= t.fullLevel then
+        if dist <= t.fullRange then return 0.8, true end
+    end
+    if foragingLevel >= t.midLevel then
+        if dist <= t.midRange then return 0.4, false end
+    end
+    if foragingLevel >= t.lowLevel then
+        if dist <= t.lowRange then return 0.15, false end
+    end
+    return 0.0, false
+end
+
+Events.OnTick.Add(CamoVisibility.onTick)
+```
+
+### New Files (Camouflage)
+
+| File | Purpose | Est. Lines |
+|---|---|---|
+| `client/Deadwire/CamoVisibility.lua` | Client-side alpha control | ~120 |
+| `server/Deadwire/CamoDegradation.lua` | Rain/trigger durability loss | ~60 |
+| `client/Deadwire/CamoActions.lua` | Camouflage/disarm/step-over timed actions | ~80 |
+| **Camouflage addition** | | **~260** |
+
+---
+
+## Server Sandbox Options (Complete Reference)
+
+Every tunable value in the mod is exposed via SandboxVars. Organized by category page in the server settings UI.
+
+### Page: Deadwire — General
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `EnableMod` | boolean | true | — | Master switch. Disables all Deadwire mechanics. |
+| `EnableTier0` | boolean | true | — | Enable tin can trip lines (no skill required). |
+| `EnableTier1` | boolean | true | — | Enable reinforced trip lines + bells. |
+| `EnableTier2` | boolean | true | — | Enable pull-alarm wired systems. |
+| `EnableTier3` | boolean | true | — | Enable electric livestock fencing. |
+| `EnableTier4` | boolean | true | — | Enable advanced applications (modified charger, detonation, electrified barbed wire). |
+| `EnableCamouflage` | boolean | true | — | Enable wire camouflage system. |
+| `WireMaxPerPlayer` | integer | 50 | 5-500 | Maximum placed wires per player (prevents server lag from excessive objects). |
+| `WireMaxPerFaction` | integer | 200 | 20-2000 | Maximum placed wires per faction (MP). 0 = unlimited. |
+| `WireDecayEnabled` | boolean | false | — | All wires slowly degrade over time (even without triggers). |
+| `WireDecayDaysToBreak` | integer | 30 | 1-365 | Days until an untouched wire breaks from decay. |
+| `WireAffectsZombies` | boolean | true | — | Wires trigger on zombie contact. |
+| `WireAffectsPlayers` | boolean | true | — | Wires trigger on player contact (critical for PvP). |
+| `WireAffectsAnimals` | boolean | true | — | Wires trigger on animal contact (B42 animals). |
+
+### Page: Deadwire — Sound
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `TinCanSoundRadius` | integer | 25 | 5-100 | Zombie attraction radius for tin can rattle (tiles). |
+| `ReinforcedSoundRadius` | integer | 40 | 10-100 | Zombie attraction radius for reinforced wire rattle. |
+| `BellSoundRadius` | integer | 60 | 10-150 | Zombie attraction radius for bell ring. |
+| `AlarmBellRadius` | integer | 50 | 10-200 | Zombie attraction radius for pull-alarm bell. |
+| `CarHornRadius` | integer | 80 | 20-200 | Zombie attraction radius for car horn alarm. |
+| `ElectricZapRadius` | integer | 30 | 5-100 | Zombie attraction radius for single electric zap. |
+| `SoundMultiplier` | double | 1.0 | 0.1-5.0 | Global multiplier for all Deadwire sound radii. |
+
+### Page: Deadwire — Trip Lines
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `TinCanBreakOnTrigger` | boolean | true | — | Tin can trip lines are single-use. |
+| `TinCanTwineBreakChance` | integer | 80 | 0-100 | % chance twine-variant tin can line breaks on trigger. |
+| `TinCanFishingLineBreakChance` | integer | 100 | 0-100 | % chance fishing line variant breaks. |
+| `ReinforcedCooldownSeconds` | integer | 36 | 5-300 | Seconds before reinforced wire can re-trigger after activation. |
+| `TripLineMaxSpan` | integer | 4 | 2-12 | Max tiles a tin can trip line can span. |
+| `ReinforcedMaxSpan` | integer | 8 | 2-20 | Max tiles a reinforced trip line can span. |
+| `TripLineHealth` | integer | 50 | 10-500 | Durability of trip line objects (zombie thump damage). |
+| `ReinforcedHealth` | integer | 150 | 25-1000 | Durability of reinforced trip line objects. |
+| `PlayerTripDamage` | integer | 5 | 0-50 | Damage to players who trip a wire. 0 = stumble only. |
+| `PlayerTripStumble` | boolean | true | — | Players stumble (brief movement penalty) when tripping a wire. |
+
+### Page: Deadwire — Tanglefoot
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `EnableTanglefoot` | boolean | true | — | Enable tanglefoot zone mechanic. |
+| `TanglefootTripChance` | integer | 40 | 5-100 | % chance per tile of zombie tripping in tanglefoot zone. |
+| `TanglefootSize` | enum | 2 (3x3) | 1-3 | Zone size: 1=1x1, 2=3x3, 3=5x5. |
+| `TanglefootProneSeconds` | double | 3.0 | 1.0-10.0 | Seconds zombie stays prone after tripping. |
+| `TanglefootDegradePerTrigger` | integer | 10 | 1-50 | Durability lost per zombie trip. |
+| `TanglefootAffectsCrawlers` | boolean | false | — | Crawlers are already prone -- should tanglefoot affect them? |
+| `TanglefootRainDegradeRate` | integer | 5 | 0-50 | Durability lost per in-game hour of rain. |
+
+### Page: Deadwire — Pull-Alarm (Phase 2)
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `AlarmMaxWireDistance` | integer | 100 | 10-500 | Max tiles between trip trigger and alarm bell/horn. |
+| `AlarmWireCostPerTiles` | integer | 10 | 5-50 | 1 Electric Wire required per N tiles of distance. |
+| `CarHornSalvageChance` | integer | 80 | 0-100 | % chance of successful car horn removal. |
+
+### Page: Deadwire — Electric Fencing (Phase 3)
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `FenceStaggerDuration` | double | 1.5 | 0.5-5.0 | Seconds zombie stumbles after electric contact. |
+| `PowerDrainPerHit` | double | 0.2 | 0.01-2.0 | Battery/fuel units drained per zombie contact. |
+| `BatteryCapacity` | integer | 100 | 10-500 | Full charge units for a car battery as standalone power. |
+| `GeneratorDrainMultiplier` | double | 1.0 | 0.1-5.0 | Multiplier on fuel consumption when powering fences. |
+| `FenceChargerSpawnRarity` | enum | 2 (Moderate) | 1-4 | 1=Rare, 2=Moderate, 3=Common, 4=Abundant. |
+| `InsulatorSpawnRarity` | enum | 3 (Common) | 1-4 | Same scale. |
+| `FenceChainMaxTiles` | integer | 50 | 5-200 | Max tiles in a single electrified fence network. |
+| `EnableCascadeFailure` | boolean | true | — | Fence goes dead when power runs out (vs. graceful degradation). |
+| `PowerWarningThreshold` | integer | 20 | 5-50 | Battery % at which "low power" warning sound plays. |
+
+### Page: Deadwire — Advanced (Phase 4)
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `ModifiedKillChance` | integer | 15 | 0-100 | % chance modified charger kills zombie on contact. |
+| `ModifiedDrainMultiplier` | double | 3.5 | 1.0-10.0 | Power drain multiplier for modified chargers. |
+| `ModifiedBurnoutChance` | integer | 2 | 0-25 | % chance per trigger cycle that modified charger burns out. |
+| `EnableFireRisk` | boolean | false | — | Electric fences can spark fires. |
+| `FireRiskThreshold` | integer | 8 | 3-20 | Simultaneous zombie contacts before fire chance activates. |
+| `FireRiskChance` | integer | 5 | 1-50 | % chance of fire per tick when threshold exceeded. |
+| `EnableTripDetonation` | boolean | true | — | Allow trip lines to trigger explosives. |
+| `ElecBarbedWireTangleChance` | integer | 20 | 0-100 | % chance zombie gets tangled in electrified barbed wire. |
+| `ElecBarbedWireTangleDuration` | double | 4.0 | 1.0-15.0 | Seconds zombie stays tangled. |
+| `ElecBarbedWireScratchDamage` | integer | 10 | 0-50 | Scratch damage to zombies on electrified barbed wire. |
+
+### Page: Deadwire — Camouflage
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `CamoEnabled` | boolean | true | — | Master switch for camouflage system. |
+| `CamoMaterialType` | enum | 1 (Twigs) | 1-3 | Required material: 1=Twigs only, 2=Twigs or Branches, 3=Any foraged plant material. |
+| `CamoMaterialCount` | integer | 3 | 1-10 | Number of material items consumed per camouflage application. |
+| `CamoSkillRequired` | enum | 2 (Trapping 2) | 1-4 | Skill gate: 1=None, 2=Trapping 2, 3=Foraging 3, 4=Trapping 2 AND Foraging 2. |
+| `CamoDetectLevelLow` | integer | 3 | 0-10 | Foraging level for faint shimmer visibility (alpha 0.15). |
+| `CamoDetectLevelMid` | integer | 5 | 0-10 | Foraging level for semi-visible (alpha 0.4). |
+| `CamoDetectLevelFull` | integer | 7 | 0-10 | Foraging level for full visibility + outline (alpha 0.8). |
+| `CamoDetectRangeLow` | integer | 3 | 1-20 | Tile range for faint detection. |
+| `CamoDetectRangeMid` | integer | 8 | 2-30 | Tile range for mid detection. |
+| `CamoDetectRangeFull` | integer | 15 | 3-50 | Tile range for full detection. |
+| `CamoMaxDurability` | integer | 100 | 10-500 | Starting durability of fresh camouflage. |
+| `CamoRainDegradeRate` | integer | 2 | 0-20 | Durability lost per in-game hour of rain. |
+| `CamoStormMultiplier` | double | 3.0 | 1.0-10.0 | Rain degrade multiplier during thunderstorms. |
+| `CamoTriggerDegrade` | integer | 15 | 0-50 | Durability lost each time the camouflaged wire triggers. |
+| `CamoStepOverEnabled` | boolean | true | — | Allow players who detect a wire to step over it. |
+| `CamoDisarmEnabled` | boolean | true | — | Allow players who detect a wire to disarm it. |
+| `CamoDisarmRecoverWire` | boolean | true | — | Disarming returns the wire kit to inventory (vs. destroying it). |
+| `CamoDisarmFailChance` | integer | 10 | 0-50 | % chance disarm attempt triggers the wire instead. |
+| `CamoAppliesToElectric` | boolean | false | — | Can electric fences be camouflaged? (false = passive wires only). |
+| `CamoVisibleToOwner` | boolean | true | — | Wire placer always sees their own camouflaged wires. |
+| `CamoVisibleToFaction` | boolean | true | — | Faction members always see their faction's camouflaged wires. |
+
+### Page: Deadwire — Loot & Spawns
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `BellSpawnRate` | enum | 3 (Common) | 1-4 | 1=Rare, 2=Moderate, 3=Common, 4=Abundant. |
+| `MagazineSpawnRate` | enum | 2 (Moderate) | 1-4 | Spawn rate for both recipe magazines. |
+| `SpringSpawnRate` | enum | 3 (Common) | 1-4 | Spawn rate for springs (mattresses, appliances). |
+| `FenceChargerSpawnRate` | enum | 2 (Moderate) | 1-4 | Spawn rate for fence chargers. |
+| `InsulatorSpawnRate` | enum | 3 (Common) | 1-4 | Spawn rate for ceramic insulators. |
+
+### Page: Deadwire — Multiplayer
+
+| Option | Type | Default | Range | Description |
+|---|---|---|---|---|
+| `FriendlyFireWires` | boolean | true | — | Faction members trigger each other's wires. |
+| `WireOwnerImmunity` | boolean | false | — | Wire placer is immune to their own wires. |
+| `WireShowPlacer` | boolean | false | — | Show who placed a wire when examined (admin tool). |
+| `AdminBypassCamo` | boolean | true | — | Server admins always see all camouflaged wires. |
+| `LogWirePlacements` | boolean | true | — | Log all wire placements to server log (griefing protection). |
+| `LogWireTriggers` | boolean | false | — | Log all wire trigger events (verbose, for debugging). |
+
+### Total Sandbox Options: 73
+
+Organized across 9 settings pages. Every gameplay-affecting value is tunable. Server owners can:
+- Disable entire tiers they don't want
+- Disable camouflage entirely for servers that prefer visible-only wires
+- Tune detection thresholds (hardcore PvP = high Foraging requirement, casual = low)
+- Control whether faction members see each other's wires
+- Limit wire spam per player/faction
+- Adjust all sound radii independently
+- Enable/disable fire risk, friendly fire, owner immunity
+- Control loot rarity of all new items
+- Log placements for griefing investigation
+
+---
+
 ## Cumulative Scope
 
 | Phase | New Lines | Cumulative | Shippable? |
 |---|---|---|---|
-| Phase 1 (MVP) | ~1,600 | ~1,600 | Yes - Workshop release |
-| Phase 2 (Pull-Alarms) | ~450 | ~2,050 | Yes - Workshop update |
-| Phase 3 (Electric) | ~770 | ~2,820 | Yes - Workshop update |
-| Phase 4 (Advanced) | ~280 | ~3,100 | Yes - Workshop update |
+| Phase 1 (MVP + Camo) | ~1,860 | ~1,860 | Yes - Workshop release |
+| Phase 2 (Pull-Alarms) | ~450 | ~2,310 | Yes - Workshop update |
+| Phase 3 (Electric) | ~770 | ~3,080 | Yes - Workshop update |
+| Phase 4 (Advanced) | ~280 | ~3,360 | Yes - Workshop update |
 
-These estimates exclude sprites, sounds, and poster art.
+Camouflage (~260 lines) ships with Phase 1 MVP. These estimates exclude sprites, sounds, and poster art. Sandbox options (~200 lines across all phases) are included in the estimates above.
 
 ---
 
@@ -843,18 +1135,27 @@ These estimates exclude sprites, sounds, and poster art.
 
 **Test**: Craft and place a tin can trip line via context menu. Verify it appears in the world, syncs to other players, and can be destroyed.
 
-### Sprint 3: Sound + Trigger + Polish
+### Sprint 3: Sound + Trigger
 
 10. **TripLineHandler.lua**: Sound events on trigger, wire break
 11. **ReinforcedHandler.lua**: Reusable wire with cooldown
 12. **LootDistribution.lua**: Bell spawns
 13. **Item/recipe scripts**: All Phase 1 items and recipes
-14. **SandboxVars**: All Phase 1 configuration
-15. **ModOptions.lua**: Client preferences
 
-**Test**: Full Phase 1 test plan (see above). Ship to Workshop.
+**Test**: Place wire, trigger with zombie, verify sound and break mechanics.
 
-### Sprint 4-6: Phases 2-4
+### Sprint 4: Camouflage + Config + Polish
+
+14. **CamoVisibility.lua**: Client-side alpha control per Foraging level
+15. **CamoActions.lua**: Camouflage/disarm/step-over timed actions
+16. **CamoDegradation.lua**: Rain and trigger durability loss
+17. **SandboxVars**: All 73 options across 9 pages
+18. **ModOptions.lua**: Client preferences
+19. **Translation files**: All sandbox option labels and tooltips
+
+**Test**: Full Phase 1 test plan (see above) including camouflage tests. Ship to Workshop.
+
+### Sprint 5-7: Phases 2-4
 
 Follow the phase order. Each phase is an independent Workshop update.
 
@@ -871,6 +1172,9 @@ Follow the phase order. Each phase is an independent Workshop update.
 | Sprites/sounds delay release | Medium | Low | Use placeholder vanilla sprites initially |
 | MP desync on wire state | Medium | High | Server-authoritative; broadcast all state changes |
 | 42.13 registry changes break item tags | Low | Medium | Use `deadwire:tagname` namespace from day one |
+| Camo alpha flicker on chunk load/unload | Medium | Low | OnTick re-applies alpha; transient flicker acceptable |
+| 73 SandboxVars overwhelming for server owners | Low | Low | Sensible defaults; most servers won't change anything |
+| Object picker interactable at alpha 0 | Medium | Medium | Guard context menu with Foraging level check |
 
 ---
 
