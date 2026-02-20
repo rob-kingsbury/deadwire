@@ -8,7 +8,7 @@
 
 Deadwire fills a glaring hole in Project Zomboid: **players have no way to build perimeter alarm or defense systems using the mundane materials that surround them.** The game is set in 1993 rural Kentucky — a landscape full of fishing line, wire, empty cans, barbed wire, and electric fence chargers from every farm supply store in the county. Yet vanilla PZ offers zero way to string a trip wire between two fence posts or electrify a perimeter fence.
 
-This mod adds a tiered progression of perimeter security systems, starting with zero-skill junk solutions (tin cans on fishing line) and scaling up through electrical skill to powered electric livestock fencing. Every component is period-accurate, uses existing vanilla items wherever possible, and is grounded in what a real person would actually build in this situation. Nothing breaks roleplay immersion. Nothing is overpowered. You're buying time and information, not invincibility.
+This mod adds a tiered progression of perimeter security systems, starting with zero-skill junk solutions (tin cans on fishing line) and scaling up through electrical skill to electrified perimeter fencing. Every component is period-accurate, uses existing vanilla items wherever possible, and is grounded in what a real person would actually build in this situation. Nothing breaks roleplay immersion. Nothing is overpowered. You're buying time and information, not invincibility.
 
 ---
 
@@ -61,7 +61,7 @@ Deadwire should feel like it belongs in the base game. It uses vanilla items (tw
 - 100+ tile range. Directional info via separate lines to separate bells.
 - Car horn variant (Mechanics 2 salvage): louder but attracts zombies to base.
 
-### Tier 3: Electric Livestock Fencing
+### Tier 3: Electrified Perimeter Fencing
 - Electrical 5. Requires "Kentucky Farm & Ranch Manual" magazine. Requires power source.
 - Fence chargers (scavenge-only), insulators (scavenge or Pottery 2 craft), ground rods.
 - Stagger on contact (1-2s), audible zap, power drain per hit.
@@ -101,7 +101,7 @@ Deadwire should feel like it belongs in the base game. It uses vanilla items (tw
 ## Phasing
 
 ### Phase 1 — MVP
-Tier 0 + Tier 1 + sound events + new items + ModOptions
+Tier 0 + Tier 1 + Camouflage + sound events + new items + SandboxVars
 
 ### Phase 2 — Pull-Alarms
 Tier 2 + magazine + car horn salvage

@@ -1,0 +1,237 @@
+Sandbox_EN = {
+
+    -- Page titles
+    Sandbox_Deadwire = "Deadwire",
+    Sandbox_DeadwireSound = "Deadwire - Sound",
+    Sandbox_DeadwireTripLines = "Deadwire - Trip Lines",
+    Sandbox_DeadwireTanglefoot = "Deadwire - Tanglefoot",
+    Sandbox_DeadwireCamo = "Deadwire - Camouflage",
+    Sandbox_DeadwireMP = "Deadwire - Multiplayer",
+    Sandbox_DeadwireLoot = "Deadwire - Loot",
+
+    -- =============================================================
+    -- General
+    -- =============================================================
+
+    Sandbox_Deadwire_EnableMod = "Enable Deadwire mod",
+    Sandbox_Deadwire_EnableMod_tooltip = "Master switch. Turns off all Deadwire mechanics when disabled. Wires already placed remain in the world but stop functioning.",
+
+    Sandbox_Deadwire_EnableTier0 = "Allow tin can trip lines (Tier 0, no skill)",
+    Sandbox_Deadwire_EnableTier0_tooltip = "Tin cans on fishing line or twine. No skill required. The most basic alarm available on day one.",
+
+    Sandbox_Deadwire_EnableTier1 = "Allow reinforced trip lines and bells (Tier 1)",
+    Sandbox_Deadwire_EnableTier1_tooltip = "Wire-based reusable trip lines and bell noisemakers. Requires Carpentry 2 + Trapping 2.",
+
+    Sandbox_Deadwire_EnableCamouflage = "Allow players to camouflage wires",
+    Sandbox_Deadwire_EnableCamouflage_tooltip = "Players can hide placed wires using foraged materials. Other players need Foraging skill to spot them. Turn off for visible-only wires.",
+
+    Sandbox_Deadwire_WireMaxPerPlayer = "Max placed wires per player",
+    Sandbox_Deadwire_WireMaxPerPlayer_tooltip = "Limits how many wires a single player can have placed at once. Prevents lag from excessive objects.",
+
+    Sandbox_Deadwire_WireMaxPerFaction = "Max placed wires per faction",
+    Sandbox_Deadwire_WireMaxPerFaction_tooltip = "Combined wire limit for all members of a faction.",
+
+    Sandbox_Deadwire_WireAffectsZombies = "Wires trigger on zombie contact",
+    Sandbox_Deadwire_WireAffectsZombies_tooltip = "When enabled, zombies walking through a wire will trigger it. Disable to make wires player-only (PvP traps).",
+
+    Sandbox_Deadwire_WireAffectsPlayers = "Wires trigger on player contact",
+    Sandbox_Deadwire_WireAffectsPlayers_tooltip = "When enabled, players walking through a wire will trigger it. Disable for PvE-only servers where wires should only affect zombies.",
+
+    Sandbox_Deadwire_WireAffectsAnimals = "Wires trigger on animal contact",
+    Sandbox_Deadwire_WireAffectsAnimals_tooltip = "When enabled, animals walking through a wire will trigger it.",
+
+    Sandbox_Deadwire_WireDecayEnabled = "Wires degrade over time without use",
+    Sandbox_Deadwire_WireDecayEnabled_tooltip = "All wires slowly lose durability even if nothing triggers them. Simulates weathering and rot.",
+
+    Sandbox_Deadwire_WireDecayDaysToBreak = "Days until an idle wire breaks from decay",
+    Sandbox_Deadwire_WireDecayDaysToBreak_tooltip = "How many in-game days until an untouched, untriggered wire breaks on its own. Only applies if wire decay is enabled.",
+
+    -- =============================================================
+    -- Sound
+    -- =============================================================
+
+    Sandbox_Deadwire_SoundMultiplier = "Global sound radius multiplier",
+    Sandbox_Deadwire_SoundMultiplier_tooltip = "Scales all Deadwire sound radii up or down. At 2.0 everything is heard twice as far. Affects zombie attraction distance.",
+
+    Sandbox_Deadwire_TinCanSoundRadius = "Tin can rattle radius (tiles)",
+    Sandbox_Deadwire_TinCanSoundRadius_tooltip = "How far away zombies hear a tin can trip line trigger, in tiles.",
+
+    Sandbox_Deadwire_ReinforcedSoundRadius = "Reinforced wire rattle radius (tiles)",
+    Sandbox_Deadwire_ReinforcedSoundRadius_tooltip = "How far away zombies hear a reinforced wire trip line trigger, in tiles.",
+
+    Sandbox_Deadwire_BellSoundRadius = "Bell ring radius (tiles)",
+    Sandbox_Deadwire_BellSoundRadius_tooltip = "How far away zombies hear a bell ring, in tiles. Bells are louder than cans or wire.",
+
+    -- =============================================================
+    -- Trip Lines
+    -- =============================================================
+
+    Sandbox_Deadwire_TinCanBreakOnTrigger = "Tin can trip lines are single-use",
+    Sandbox_Deadwire_TinCanBreakOnTrigger_tooltip = "When enabled, tin can trip lines break after one trigger. Disable to make them reusable.",
+
+    Sandbox_Deadwire_TinCanTwineBreakChance = "Chance twine-variant breaks on trigger (%)",
+    Sandbox_Deadwire_TinCanTwineBreakChance_tooltip = "Percentage chance a twine-based tin can line snaps when triggered. 100 = always breaks. 0 = never breaks.",
+
+    Sandbox_Deadwire_TinCanFishingLineBreakChance = "Chance fishing line variant breaks on trigger (%)",
+    Sandbox_Deadwire_TinCanFishingLineBreakChance_tooltip = "Percentage chance a fishing line tin can line snaps when triggered.",
+
+    Sandbox_Deadwire_ReinforcedCooldownSeconds = "Seconds before reinforced wire can re-trigger",
+    Sandbox_Deadwire_ReinforcedCooldownSeconds_tooltip = "After a reinforced wire triggers, it goes silent for this many seconds before it can trigger again.",
+
+    Sandbox_Deadwire_TripLineMaxSpan = "Max span for tin can lines (tiles)",
+    Sandbox_Deadwire_TripLineMaxSpan_tooltip = "Maximum distance in tiles a tin can trip line can stretch between two anchor points.",
+
+    Sandbox_Deadwire_ReinforcedMaxSpan = "Max span for reinforced lines (tiles)",
+    Sandbox_Deadwire_ReinforcedMaxSpan_tooltip = "Maximum distance in tiles a reinforced trip line can stretch between two anchor points.",
+
+    Sandbox_Deadwire_TripLineHealth = "Tin can wire durability",
+    Sandbox_Deadwire_TripLineHealth_tooltip = "Hit points for tin can trip lines. Zombies can thump them to break them. Higher = takes more hits.",
+
+    Sandbox_Deadwire_ReinforcedHealth = "Reinforced wire durability",
+    Sandbox_Deadwire_ReinforcedHealth_tooltip = "Hit points for reinforced trip lines. Higher = takes more hits to destroy.",
+
+    Sandbox_Deadwire_PlayerTripDamage = "Damage dealt to players who trip a wire",
+    Sandbox_Deadwire_PlayerTripDamage_tooltip = "How much damage a player takes when they walk through a wire. Set to 0 for stumble only, no damage.",
+
+    Sandbox_Deadwire_PlayerTripStumble = "Players stumble when tripping a wire",
+    Sandbox_Deadwire_PlayerTripStumble_tooltip = "Players get a brief movement penalty when they walk through a wire.",
+
+    -- =============================================================
+    -- Tanglefoot
+    -- =============================================================
+
+    Sandbox_Deadwire_EnableTanglefoot = "Allow tanglefoot zones (area denial)",
+    Sandbox_Deadwire_EnableTanglefoot_tooltip = "Tanglefoot is a ground-level wire mesh that trips zombies prone. Area denial rather than alarm.",
+
+    Sandbox_Deadwire_TanglefootTripChance = "Chance a zombie trips per tile (%)",
+    Sandbox_Deadwire_TanglefootTripChance_tooltip = "Each tile of tanglefoot has this percentage chance of tripping a zombie that walks through it.",
+
+    Sandbox_Deadwire_TanglefootSize = "Tanglefoot zone size",
+    Sandbox_Deadwire_TanglefootSize_tooltip = "How large each placed tanglefoot zone is.",
+    Sandbox_Deadwire_TanglefootSize_option1 = "1x1 (single tile)",
+    Sandbox_Deadwire_TanglefootSize_option2 = "3x3 (small area)",
+    Sandbox_Deadwire_TanglefootSize_option3 = "5x5 (large area)",
+
+    Sandbox_Deadwire_TanglefootProneSeconds = "Seconds zombie stays prone after tripping",
+    Sandbox_Deadwire_TanglefootProneSeconds_tooltip = "How long a zombie lies on the ground after tripping in tanglefoot.",
+
+    Sandbox_Deadwire_TanglefootDegradePerTrigger = "Durability lost per zombie trip",
+    Sandbox_Deadwire_TanglefootDegradePerTrigger_tooltip = "Each zombie that trips in the zone wears it down by this amount.",
+
+    Sandbox_Deadwire_TanglefootAffectsCrawlers = "Tanglefoot affects crawling zombies",
+    Sandbox_Deadwire_TanglefootAffectsCrawlers_tooltip = "Crawlers are already on the ground. Enable to make tanglefoot still slow them down.",
+
+    Sandbox_Deadwire_TanglefootRainDegradeRate = "Durability lost per hour of rain",
+    Sandbox_Deadwire_TanglefootRainDegradeRate_tooltip = "Rain wears down tanglefoot zones. Set to 0 to disable weather degradation.",
+
+    -- =============================================================
+    -- Camouflage
+    -- =============================================================
+
+    Sandbox_Deadwire_CamoMaterialType = "Material required for camouflage",
+    Sandbox_Deadwire_CamoMaterialType_tooltip = "Which foraged materials players can use to hide their wires.",
+    Sandbox_Deadwire_CamoMaterialType_option1 = "Twigs only",
+    Sandbox_Deadwire_CamoMaterialType_option2 = "Twigs or branches",
+    Sandbox_Deadwire_CamoMaterialType_option3 = "Any foraged plant material",
+
+    Sandbox_Deadwire_CamoMaterialCount = "Number of materials consumed per application",
+    Sandbox_Deadwire_CamoMaterialCount_tooltip = "How many foraged items are used up each time a player camouflages a wire.",
+
+    Sandbox_Deadwire_CamoSkillRequired = "Skill required to apply camouflage",
+    Sandbox_Deadwire_CamoSkillRequired_tooltip = "What skill level a player needs before they can camouflage a wire.",
+    Sandbox_Deadwire_CamoSkillRequired_option1 = "None (anyone can do it)",
+    Sandbox_Deadwire_CamoSkillRequired_option2 = "Trapping 2",
+    Sandbox_Deadwire_CamoSkillRequired_option3 = "Foraging 3",
+    Sandbox_Deadwire_CamoSkillRequired_option4 = "Trapping 2 and Foraging 2",
+
+    Sandbox_Deadwire_CamoDetectLevelLow = "Foraging level for faint shimmer detection",
+    Sandbox_Deadwire_CamoDetectLevelLow_tooltip = "Players at or above this Foraging level see camouflaged wires as a faint shimmer at close range.",
+
+    Sandbox_Deadwire_CamoDetectLevelMid = "Foraging level for semi-visible detection",
+    Sandbox_Deadwire_CamoDetectLevelMid_tooltip = "Players at or above this Foraging level see camouflaged wires as semi-transparent at moderate range.",
+
+    Sandbox_Deadwire_CamoDetectLevelFull = "Foraging level for full visibility + outline",
+    Sandbox_Deadwire_CamoDetectLevelFull_tooltip = "Players at or above this Foraging level see camouflaged wires clearly with a colored outline highlight.",
+
+    Sandbox_Deadwire_CamoDetectRangeLow = "Detection range for faint shimmer (tiles)",
+    Sandbox_Deadwire_CamoDetectRangeLow_tooltip = "How close a player must be to see the faint shimmer of a camouflaged wire.",
+
+    Sandbox_Deadwire_CamoDetectRangeMid = "Detection range for semi-visible (tiles)",
+    Sandbox_Deadwire_CamoDetectRangeMid_tooltip = "How close a player must be to see a camouflaged wire as semi-transparent.",
+
+    Sandbox_Deadwire_CamoDetectRangeFull = "Detection range for full visibility (tiles)",
+    Sandbox_Deadwire_CamoDetectRangeFull_tooltip = "How close a player must be to see a camouflaged wire with full clarity and outline.",
+
+    Sandbox_Deadwire_CamoMaxDurability = "Camouflage starting durability",
+    Sandbox_Deadwire_CamoMaxDurability_tooltip = "Fresh camouflage starts with this much durability. Higher values mean it lasts longer before wearing off.",
+
+    Sandbox_Deadwire_CamoRainDegradeRate = "Camouflage durability lost per hour of rain",
+    Sandbox_Deadwire_CamoRainDegradeRate_tooltip = "Rain washes away camouflage over time. Set to 0 to disable rain degradation.",
+
+    Sandbox_Deadwire_CamoStormMultiplier = "Storm degradation multiplier",
+    Sandbox_Deadwire_CamoStormMultiplier_tooltip = "During thunderstorms, camouflage degrades this many times faster than normal rain.",
+
+    Sandbox_Deadwire_CamoTriggerDegrade = "Camouflage durability lost per wire trigger",
+    Sandbox_Deadwire_CamoTriggerDegrade_tooltip = "Each time a camouflaged wire triggers, the camouflage wears down by this amount.",
+
+    Sandbox_Deadwire_CamoStepOverEnabled = "Players who spot a wire can step over it",
+    Sandbox_Deadwire_CamoStepOverEnabled_tooltip = "Players with high enough Foraging to detect a camouflaged wire can choose to step over it without triggering.",
+
+    Sandbox_Deadwire_CamoDisarmEnabled = "Players who spot a wire can disarm it",
+    Sandbox_Deadwire_CamoDisarmEnabled_tooltip = "Players with high enough Foraging to detect a camouflaged wire can attempt to disarm and remove it.",
+
+    Sandbox_Deadwire_CamoDisarmRecoverWire = "Disarming returns the wire kit to inventory",
+    Sandbox_Deadwire_CamoDisarmRecoverWire_tooltip = "When a player successfully disarms a wire, they get the wire kit back. Disable to destroy it instead.",
+
+    Sandbox_Deadwire_CamoDisarmFailChance = "Chance a disarm attempt triggers the wire (%)",
+    Sandbox_Deadwire_CamoDisarmFailChance_tooltip = "Percentage chance that trying to disarm a wire sets it off instead. Higher = riskier to disarm.",
+
+    Sandbox_Deadwire_CamoAppliesToElectric = "Allow camouflage on electric fences",
+    Sandbox_Deadwire_CamoAppliesToElectric_tooltip = "When disabled, only passive wires (trip lines, tanglefoot) can be camouflaged. Electric fences stay visible.",
+
+    Sandbox_Deadwire_CamoVisibleToOwner = "Owner always sees their own camouflaged wires",
+    Sandbox_Deadwire_CamoVisibleToOwner_tooltip = "The player who placed a wire always sees it regardless of camouflage. Disable for full blindness.",
+
+    Sandbox_Deadwire_CamoVisibleToFaction = "Faction members see their faction's camouflaged wires",
+    Sandbox_Deadwire_CamoVisibleToFaction_tooltip = "Members of the same faction always see wires placed by their faction. Disable for individual visibility only.",
+
+    -- =============================================================
+    -- Multiplayer
+    -- =============================================================
+
+    Sandbox_Deadwire_FriendlyFireWires = "Faction members trigger each other's wires",
+    Sandbox_Deadwire_FriendlyFireWires_tooltip = "When enabled, walking through a faction mate's wire triggers it. Disable so faction members pass through safely.",
+
+    Sandbox_Deadwire_WireOwnerImmunity = "Wire placer is immune to their own wires",
+    Sandbox_Deadwire_WireOwnerImmunity_tooltip = "The player who placed a wire can walk through it without triggering. Does not apply to other faction members.",
+
+    Sandbox_Deadwire_WireShowPlacer = "Show who placed a wire on examine",
+    Sandbox_Deadwire_WireShowPlacer_tooltip = "Examining a wire shows the username of who placed it. Useful for admins investigating griefing.",
+
+    Sandbox_Deadwire_AdminBypassCamo = "Admins always see all camouflaged wires",
+    Sandbox_Deadwire_AdminBypassCamo_tooltip = "Server admins see every camouflaged wire regardless of Foraging level.",
+
+    Sandbox_Deadwire_LogWirePlacements = "Log wire placements to server log",
+    Sandbox_Deadwire_LogWirePlacements_tooltip = "Every time a player places a wire, it gets written to the server log with coordinates and username.",
+
+    Sandbox_Deadwire_LogWireTriggers = "Log wire triggers to server log",
+    Sandbox_Deadwire_LogWireTriggers_tooltip = "Every time a wire triggers, it gets written to the server log. Generates a lot of output.",
+
+    -- =============================================================
+    -- Loot
+    -- =============================================================
+
+    Sandbox_Deadwire_BellSpawnRate = "How often bells appear in loot",
+    Sandbox_Deadwire_BellSpawnRate_tooltip = "Controls how commonly bells show up in churches, schools, farms, and reception areas.",
+    Sandbox_Deadwire_BellSpawnRate_option1 = "Rare",
+    Sandbox_Deadwire_BellSpawnRate_option2 = "Moderate",
+    Sandbox_Deadwire_BellSpawnRate_option3 = "Common",
+    Sandbox_Deadwire_BellSpawnRate_option4 = "Abundant",
+
+    Sandbox_Deadwire_MagazineSpawnRate = "How often recipe magazines appear in loot",
+    Sandbox_Deadwire_MagazineSpawnRate_tooltip = "Controls how commonly Deadwire recipe magazines show up in farm supply stores, barns, and libraries.",
+    Sandbox_Deadwire_MagazineSpawnRate_option1 = "Rare",
+    Sandbox_Deadwire_MagazineSpawnRate_option2 = "Moderate",
+    Sandbox_Deadwire_MagazineSpawnRate_option3 = "Common",
+    Sandbox_Deadwire_MagazineSpawnRate_option4 = "Abundant",
+}

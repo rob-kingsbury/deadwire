@@ -1,0 +1,471 @@
+VERSION = 1,
+
+-- =========================================================
+-- Deadwire — Advanced Server Settings (60 options)
+-- =========================================================
+-- Full control over every tunable value in the mod.
+--
+-- TO INSTALL: Copy this file to your mod's media folder,
+-- replacing the default sandbox-options.txt:
+--
+--   From: docs/sandbox-options-advanced.txt
+--   To:   Contents/mods/Deadwire/42/media/sandbox-options.txt
+--
+-- Then restart the server or start a new game.
+-- See README.md for details.
+-- =========================================================
+
+
+-- ---------------------------------------------------------
+-- Page: General
+-- ---------------------------------------------------------
+
+option Deadwire.EnableMod
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_EnableMod,
+}
+
+option Deadwire.EnableTier0
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_EnableTier0,
+}
+
+option Deadwire.EnableTier1
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_EnableTier1,
+}
+
+option Deadwire.EnableCamouflage
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_EnableCamouflage,
+}
+
+option Deadwire.WireMaxPerPlayer
+{
+    type = integer, default = 50, min = 5, max = 500,
+    page = Deadwire,
+    translation = Deadwire_WireMaxPerPlayer,
+}
+
+option Deadwire.WireMaxPerFaction
+{
+    type = integer, default = 200, min = 20, max = 2000,
+    page = Deadwire,
+    translation = Deadwire_WireMaxPerFaction,
+}
+
+option Deadwire.WireAffectsZombies
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_WireAffectsZombies,
+}
+
+option Deadwire.WireAffectsPlayers
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_WireAffectsPlayers,
+}
+
+option Deadwire.WireAffectsAnimals
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_WireAffectsAnimals,
+}
+
+option Deadwire.WireDecayEnabled
+{
+    type = boolean, default = false,
+    page = Deadwire,
+    translation = Deadwire_WireDecayEnabled,
+}
+
+option Deadwire.WireDecayDaysToBreak
+{
+    type = integer, default = 30, min = 1, max = 365,
+    page = Deadwire,
+    translation = Deadwire_WireDecayDaysToBreak,
+}
+
+
+-- ---------------------------------------------------------
+-- Page: Sound
+-- ---------------------------------------------------------
+
+option Deadwire.SoundMultiplier
+{
+    type = double, default = 1.0, min = 0.1, max = 5.0,
+    page = DeadwireSound,
+    translation = Deadwire_SoundMultiplier,
+}
+
+option Deadwire.TinCanSoundRadius
+{
+    type = integer, default = 25, min = 5, max = 100,
+    page = DeadwireSound,
+    translation = Deadwire_TinCanSoundRadius,
+}
+
+option Deadwire.ReinforcedSoundRadius
+{
+    type = integer, default = 40, min = 10, max = 100,
+    page = DeadwireSound,
+    translation = Deadwire_ReinforcedSoundRadius,
+}
+
+option Deadwire.BellSoundRadius
+{
+    type = integer, default = 60, min = 10, max = 150,
+    page = DeadwireSound,
+    translation = Deadwire_BellSoundRadius,
+}
+
+
+-- ---------------------------------------------------------
+-- Page: Trip Lines
+-- ---------------------------------------------------------
+
+option Deadwire.TinCanBreakOnTrigger
+{
+    type = boolean, default = true,
+    page = DeadwireTripLines,
+    translation = Deadwire_TinCanBreakOnTrigger,
+}
+
+option Deadwire.TinCanTwineBreakChance
+{
+    type = integer, default = 80, min = 0, max = 100,
+    page = DeadwireTripLines,
+    translation = Deadwire_TinCanTwineBreakChance,
+}
+
+option Deadwire.TinCanFishingLineBreakChance
+{
+    type = integer, default = 100, min = 0, max = 100,
+    page = DeadwireTripLines,
+    translation = Deadwire_TinCanFishingLineBreakChance,
+}
+
+option Deadwire.ReinforcedCooldownSeconds
+{
+    type = integer, default = 36, min = 5, max = 300,
+    page = DeadwireTripLines,
+    translation = Deadwire_ReinforcedCooldownSeconds,
+}
+
+option Deadwire.TripLineMaxSpan
+{
+    type = integer, default = 4, min = 2, max = 12,
+    page = DeadwireTripLines,
+    translation = Deadwire_TripLineMaxSpan,
+}
+
+option Deadwire.ReinforcedMaxSpan
+{
+    type = integer, default = 8, min = 2, max = 20,
+    page = DeadwireTripLines,
+    translation = Deadwire_ReinforcedMaxSpan,
+}
+
+option Deadwire.TripLineHealth
+{
+    type = integer, default = 50, min = 10, max = 500,
+    page = DeadwireTripLines,
+    translation = Deadwire_TripLineHealth,
+}
+
+option Deadwire.ReinforcedHealth
+{
+    type = integer, default = 150, min = 25, max = 1000,
+    page = DeadwireTripLines,
+    translation = Deadwire_ReinforcedHealth,
+}
+
+option Deadwire.PlayerTripDamage
+{
+    type = integer, default = 5, min = 0, max = 50,
+    page = DeadwireTripLines,
+    translation = Deadwire_PlayerTripDamage,
+}
+
+option Deadwire.PlayerTripStumble
+{
+    type = boolean, default = true,
+    page = DeadwireTripLines,
+    translation = Deadwire_PlayerTripStumble,
+}
+
+
+-- ---------------------------------------------------------
+-- Page: Tanglefoot
+-- ---------------------------------------------------------
+
+option Deadwire.EnableTanglefoot
+{
+    type = boolean, default = true,
+    page = DeadwireTanglefoot,
+    translation = Deadwire_EnableTanglefoot,
+}
+
+option Deadwire.TanglefootTripChance
+{
+    type = integer, default = 40, min = 5, max = 100,
+    page = DeadwireTanglefoot,
+    translation = Deadwire_TanglefootTripChance,
+}
+
+option Deadwire.TanglefootSize
+{
+    type = enum, numValues = 3, default = 2,
+    page = DeadwireTanglefoot,
+    translation = Deadwire_TanglefootSize,
+}
+
+option Deadwire.TanglefootProneSeconds
+{
+    type = double, default = 3.0, min = 1.0, max = 10.0,
+    page = DeadwireTanglefoot,
+    translation = Deadwire_TanglefootProneSeconds,
+}
+
+option Deadwire.TanglefootDegradePerTrigger
+{
+    type = integer, default = 10, min = 1, max = 50,
+    page = DeadwireTanglefoot,
+    translation = Deadwire_TanglefootDegradePerTrigger,
+}
+
+option Deadwire.TanglefootAffectsCrawlers
+{
+    type = boolean, default = false,
+    page = DeadwireTanglefoot,
+    translation = Deadwire_TanglefootAffectsCrawlers,
+}
+
+option Deadwire.TanglefootRainDegradeRate
+{
+    type = integer, default = 5, min = 0, max = 50,
+    page = DeadwireTanglefoot,
+    translation = Deadwire_TanglefootRainDegradeRate,
+}
+
+
+-- ---------------------------------------------------------
+-- Page: Camouflage
+-- ---------------------------------------------------------
+
+option Deadwire.CamoMaterialType
+{
+    type = enum, numValues = 3, default = 1,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoMaterialType,
+}
+
+option Deadwire.CamoMaterialCount
+{
+    type = integer, default = 3, min = 1, max = 10,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoMaterialCount,
+}
+
+option Deadwire.CamoSkillRequired
+{
+    type = enum, numValues = 4, default = 2,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoSkillRequired,
+}
+
+option Deadwire.CamoDetectLevelLow
+{
+    type = integer, default = 3, min = 0, max = 10,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoDetectLevelLow,
+}
+
+option Deadwire.CamoDetectLevelMid
+{
+    type = integer, default = 5, min = 0, max = 10,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoDetectLevelMid,
+}
+
+option Deadwire.CamoDetectLevelFull
+{
+    type = integer, default = 7, min = 0, max = 10,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoDetectLevelFull,
+}
+
+option Deadwire.CamoDetectRangeLow
+{
+    type = integer, default = 3, min = 1, max = 20,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoDetectRangeLow,
+}
+
+option Deadwire.CamoDetectRangeMid
+{
+    type = integer, default = 8, min = 2, max = 30,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoDetectRangeMid,
+}
+
+option Deadwire.CamoDetectRangeFull
+{
+    type = integer, default = 15, min = 3, max = 50,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoDetectRangeFull,
+}
+
+option Deadwire.CamoMaxDurability
+{
+    type = integer, default = 100, min = 10, max = 500,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoMaxDurability,
+}
+
+option Deadwire.CamoRainDegradeRate
+{
+    type = integer, default = 2, min = 0, max = 20,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoRainDegradeRate,
+}
+
+option Deadwire.CamoStormMultiplier
+{
+    type = double, default = 3.0, min = 1.0, max = 10.0,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoStormMultiplier,
+}
+
+option Deadwire.CamoTriggerDegrade
+{
+    type = integer, default = 15, min = 0, max = 50,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoTriggerDegrade,
+}
+
+option Deadwire.CamoStepOverEnabled
+{
+    type = boolean, default = true,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoStepOverEnabled,
+}
+
+option Deadwire.CamoDisarmEnabled
+{
+    type = boolean, default = true,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoDisarmEnabled,
+}
+
+option Deadwire.CamoDisarmRecoverWire
+{
+    type = boolean, default = true,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoDisarmRecoverWire,
+}
+
+option Deadwire.CamoDisarmFailChance
+{
+    type = integer, default = 10, min = 0, max = 50,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoDisarmFailChance,
+}
+
+option Deadwire.CamoAppliesToElectric
+{
+    type = boolean, default = false,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoAppliesToElectric,
+}
+
+option Deadwire.CamoVisibleToOwner
+{
+    type = boolean, default = true,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoVisibleToOwner,
+}
+
+option Deadwire.CamoVisibleToFaction
+{
+    type = boolean, default = true,
+    page = DeadwireCamo,
+    translation = Deadwire_CamoVisibleToFaction,
+}
+
+
+-- ---------------------------------------------------------
+-- Page: Multiplayer
+-- ---------------------------------------------------------
+
+option Deadwire.FriendlyFireWires
+{
+    type = boolean, default = true,
+    page = DeadwireMP,
+    translation = Deadwire_FriendlyFireWires,
+}
+
+option Deadwire.WireOwnerImmunity
+{
+    type = boolean, default = false,
+    page = DeadwireMP,
+    translation = Deadwire_WireOwnerImmunity,
+}
+
+option Deadwire.WireShowPlacer
+{
+    type = boolean, default = false,
+    page = DeadwireMP,
+    translation = Deadwire_WireShowPlacer,
+}
+
+option Deadwire.AdminBypassCamo
+{
+    type = boolean, default = true,
+    page = DeadwireMP,
+    translation = Deadwire_AdminBypassCamo,
+}
+
+option Deadwire.LogWirePlacements
+{
+    type = boolean, default = true,
+    page = DeadwireMP,
+    translation = Deadwire_LogWirePlacements,
+}
+
+option Deadwire.LogWireTriggers
+{
+    type = boolean, default = false,
+    page = DeadwireMP,
+    translation = Deadwire_LogWireTriggers,
+}
+
+
+-- ---------------------------------------------------------
+-- Page: Loot
+-- ---------------------------------------------------------
+
+option Deadwire.BellSpawnRate
+{
+    type = enum, numValues = 4, default = 3,
+    page = DeadwireLoot,
+    translation = Deadwire_BellSpawnRate,
+}
+
+option Deadwire.MagazineSpawnRate
+{
+    type = enum, numValues = 4, default = 2,
+    page = DeadwireLoot,
+    translation = Deadwire_MagazineSpawnRate,
+}

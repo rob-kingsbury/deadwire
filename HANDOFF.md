@@ -2,9 +2,9 @@
 
 ## Current Priority
 
-**Phase 1 MVP — Sprint 1: Foundation**
+**Test Sprint 1 in-game (Issue #5), then start Sprint 2: Placement System**
 
-Project has design doc and implementation plan complete. No Lua code written yet. Next step is mod scaffolding and core systems.
+Sprint 1 Foundation complete and audited. All critical code bugs fixed. 5 GitHub Issues track remaining work. Next step is in-game testing to verify detection fires, then begin ISBuildingObject placement system.
 
 ---
 
@@ -13,21 +13,34 @@ Project has design doc and implementation plan complete. No Lua code written yet
 | Area | Status | Notes |
 |------|--------|-------|
 | Design Document | Done | `docs/DESIGN.md` |
-| Implementation Plan | Done | `docs/IMPLEMENTATION-PLAN.md` |
-| Mod Scaffolding | Not Started | mod.info, directory structure, Config.lua |
-| Sprint 1 (Foundation) | Not Started | WireNetwork, Detection, ServerCommands, EventHandlers |
-| Sprint 2 (Placement) | Not Started | ISBuildingObject, context menus, timed actions |
+| Implementation Plan | Done | `docs/IMPLEMENTATION-PLAN.md` (updated: Detection in client/) |
+| Mod Scaffolding | Done | mod.info, directory structure |
+| Sprint 1 (Foundation) | Done + Audited | Config, WireNetwork, Detection (client), ServerCommands, EventHandlers |
+| Sandbox Options (Basic) | Done | 14 options, 1 page |
+| Sandbox Options (Advanced) | Done | 60 options, 7 pages, in docs/ |
+| Translation File | Done | Sandbox_Deadwire_EN.txt with descriptive labels |
+| README (Workshop) | Done | Plain English, basic+advanced settings documented |
+| Sprint 2 (Placement) | Not Started | ISBuildingObject, context menus, timed actions, IsoThumpable |
 | Sprint 3 (Sound+Trigger) | Not Started | Handlers, loot, items, recipes |
 | Sprint 4 (Camo+Config) | Not Started | CamoVisibility, SandboxVars, ModOptions |
-| Phase 2 (Pull-Alarms) | Not Started | Tier 2 |
-| Phase 3 (Electric) | Not Started | Tier 3 |
-| Phase 4 (Advanced) | Not Started | Tier 4 |
+
+---
+
+## Open Issues
+
+| # | Title | Labels | Priority |
+|---|-------|--------|----------|
+| 1 | WireNetwork state not persisted across save/load | bug, phase-1, sprint-2 | High (Sprint 2) |
+| 2 | No sound feedback in singleplayer | bug, phase-1 | Moderate |
+| 3 | Zombie/player modData de-dup flags never clear | design-review, phase-1 | Low |
+| 4 | nextNetworkId not persisted across save/load | bug, sprint-2 | Low (Sprint 2) |
+| 5 | Test Sprint 1 foundation in-game | testing, phase-1 | **Next** |
 
 ---
 
 ## Blockers
 
-None currently.
+- **In-game test needed (Issue #5)**: Sprint 1 code compiles but needs PZ testing. Use `DebugPlaceWire` command to hardcode a wire, walk zombie into it, verify detection fires and sound broadcasts.
 
 ---
 
@@ -36,77 +49,83 @@ None currently.
 | Decision | Rationale | Date |
 |----------|-----------|------|
 | `OnZombieUpdate` + hash-table | Only proven pattern for tile detection. O(1) lookup. | 2026-02-20 |
+| Detection.lua in **client/** | OnZombieUpdate/OnPlayerUpdate are client-only events. | 2026-02-20 |
 | `IsoThumpable` per-tile | Vanilla barbed wire uses this exact pattern. | 2026-02-20 |
 | `module Base` | Custom modules broken in B42 MP. | 2026-02-20 |
 | Legacy generator system | Component/wiring system not fully implemented in B42. | 2026-02-20 |
 | `setAlphaAndTarget()` for camo | Global alpha operates per-client in network MP. | 2026-02-20 |
 | SandboxVars over ModOptions | Gameplay values must be server-synced. ModOptions is client-only. | 2026-02-20 |
+| Basic/Advanced sandbox split | 14 essential options ship by default; 60 full options as swap-in file. | 2026-02-20 |
 | Camouflage in Phase 1 | Highest MP value feature, minimal additional code (~260 lines). | 2026-02-20 |
 | `deadwire:tagname` namespace | Required since 42.13. | 2026-02-20 |
+| Handler registry pattern | Detection dispatches to registered handlers per wire type. | 2026-02-20 |
+| Idempotent registerTile | MP host receives its own broadcast — prevents duplicate entries. | 2026-02-20 |
 
 ---
 
-## Files Modified (Session 2)
+## Files Modified (Session 4)
 
 | File | Changes |
 |------|---------|
-| `.claude/context.md` | Created: project state with YAML header |
-| `.claude/settings.json` | Created: WebFetch permissions for PZ domains |
-| `.claude/rules/development-workflow.md` | Created: PZ-specific workflow rules |
-| `.claude/skills/session-start/SKILL.md` | Created: session initialization skill |
-| `.claude/skills/handoff/SKILL.md` | Created: session handoff skill |
-| `CLAUDE.md` | Created: project config with session start/end |
-| `HANDOFF.md` | Restructured: added status table, blockers, decisions |
+| `client/Deadwire/Detection.lua` | MOVED from server/. DRY: single `detectEntity()` for zombies + players |
+| `shared/Deadwire/WireNetwork.lua` | Made `registerTile` idempotent (check-before-insert) |
+| `server/Deadwire/ServerCommands.lua` | Fixed CamoEnabled → EnableCamouflage. DRY: `hasPosition()` helper |
+| `client/Deadwire/EventHandlers.lua` | DRY: `hasPosition()` + `getSquareFromArgs()` helpers |
+| `42/media/sandbox-options.txt` | Created: basic options (14 options, 1 page) |
+| `docs/sandbox-options-advanced.txt` | Created: advanced options (60 options, 7 pages) |
+| `shared/Translate/EN/Sandbox_Deadwire_EN.txt` | Created: all 60 option translations with descriptive labels |
+| `README.md` | Rewritten for Steam Workshop |
+| `mod.info` (both) | Consolidated root + Contents versions |
+| `docs/DESIGN.md` | Fixed Phase 1: added Camouflage, SandboxVars (not ModOptions) |
+| `docs/IMPLEMENTATION-PLAN.md` | Fixed Detection.lua location (server → client), CamoEnabled → EnableCamouflage |
+| `.claude/context.md` | Updated: session 4, fixed counts, added architecture notes |
 
 ---
 
 ## Session History
 
+### Session 4 (2026-02-20): Audit + Fixes + Sandbox Options
+
+- Full 3-agent parallel audit of all code, config, and docs
+- Fixed 3 critical bugs: Detection.lua location, idempotent registration, CamoEnabled key
+- DRY refactored all validation patterns across ServerCommands + EventHandlers
+- Created basic (14) and advanced (60) sandbox options split
+- Created translation file with self-descriptive labels
+- Rewrote README for Steam Workshop (plain English)
+- Fixed all doc inconsistencies (counts, file paths, stale refs)
+- Consolidated mod.info files
+- Created 5 GitHub Issues (#1-#5) for deferred items
+
+### Session 3 (2026-02-20): Sprint 1 Foundation
+
+- Created mod directory structure and mod.info
+- Implemented Config.lua, WireNetwork.lua, Detection.lua, ServerCommands.lua, EventHandlers.lua
+
 ### Session 2 (2026-02-20): Session workflow infrastructure
 
-- Created session-start and handoff skills (adapted from AITA)
-- Created CLAUDE.md, context.md, development-workflow.md
-- Structured HANDOFF.md with status table (adapted from gen-network)
-- Added mod sync rule for PZ testing
+- Created session-start and handoff skills, CLAUDE.md, context.md, development-workflow.md
 
 ### Session 1 (2026-02-20): Research + Planning
 
-- Created GitHub repo and project scaffolding
-- Ran 6 parallel research agents on B42 modding APIs
-- Wrote full implementation plan with code examples
-- Designed camouflage system (per-client alpha via Foraging skill)
-- Designed 73 SandboxVars across 9 settings pages
-- Commits: `fe094d7`, `53d15c2`, `33a6744`
+- Created GitHub repo, ran research agents, wrote implementation plan and design doc
 
 ---
 
 ## Next Steps
 
-1. Mod scaffolding: `mod.info`, directory structure under `Contents/mods/Deadwire/42/`
-2. `Config.lua`: Constants, wire type definitions
-3. `WireNetwork.lua`: Hash-table tile index (shared)
-4. `Detection.lua`: `OnZombieUpdate` + `OnPlayerUpdate`
-5. `ServerCommands.lua`: `OnClientCommand` dispatcher
-6. `EventHandlers.lua`: `OnServerCommand` listener
-7. Test: hardcode a wire tile, walk zombie into it, verify detection fires
-
----
-
-## Research References
-
-- [Spear Traps source](https://github.com/quarantin/zomboid-spear-traps) -- tile detection pattern
-- [Vanilla ISBarbedWire.lua](https://github.com/Project-Zomboid-Community-Modding/ProjectZomboid-Vanilla-Lua) -- placement pattern
-- [Konijima PZ-BaseMod](https://github.com/Konijima/PZ-BaseMod) -- MP command pattern
-- [Immersive Solar Arrays](https://github.com/radx5Blue/ImmersiveSolarArrays) -- custom power system
-- [PZEventDoc](https://github.com/demiurgeQuantified/PZEventDoc) -- B42 event list
-- [B42 Mod Template](https://github.com/LabX1/ProjectZomboid-Build42-ModTemplate) -- folder structure
+1. **Test Sprint 1 in-game (Issue #5)**: Enable mod, use `DebugPlaceWire`, verify detection + sound
+2. Sprint 2: `BuildActions.lua` — ISBuildingObject derivative for wire placement
+3. Sprint 2: `UI.lua` — Right-click context menu
+4. Sprint 2: `TimedActions.lua` — Placement timed action
+5. Sprint 2: `WireManager.lua` — Server-side IsoThumpable creation/destruction
+6. Sprint 2: Fix save/load persistence (Issue #1) and nextNetworkId (Issue #4)
 
 ---
 
 ## To Resume
 
 ```
-Deadwire — Start Phase 1 Sprint 1 (Foundation).
-Design and implementation plan complete, no code written yet.
+Deadwire — Sprint 1 Foundation complete and audited. 5 open issues.
+Test Sprint 1 in-game first (Issue #5), then start Sprint 2.
 Read CLAUDE.md and .claude/context.md for full project context.
 ```

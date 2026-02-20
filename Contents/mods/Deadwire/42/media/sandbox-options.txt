@@ -1,0 +1,107 @@
+VERSION = 1,
+
+-- =========================================================
+-- Deadwire — Basic Server Settings
+-- =========================================================
+-- These are the most commonly adjusted options.
+-- For full control (55+ options), see docs/sandbox-options-advanced.txt
+-- and follow the instructions in README.md.
+-- =========================================================
+
+option Deadwire.EnableMod
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_EnableMod,
+}
+
+option Deadwire.EnableCamouflage
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_EnableCamouflage,
+}
+
+option Deadwire.WireMaxPerPlayer
+{
+    type = integer, default = 50, min = 5, max = 500,
+    page = Deadwire,
+    translation = Deadwire_WireMaxPerPlayer,
+}
+
+option Deadwire.WireAffectsPlayers
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_WireAffectsPlayers,
+}
+
+option Deadwire.SoundMultiplier
+{
+    type = double, default = 1.0, min = 0.1, max = 5.0,
+    page = Deadwire,
+    translation = Deadwire_SoundMultiplier,
+}
+
+option Deadwire.TinCanBreakOnTrigger
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_TinCanBreakOnTrigger,
+}
+
+option Deadwire.TripLineHealth
+{
+    type = integer, default = 50, min = 10, max = 500,
+    page = Deadwire,
+    translation = Deadwire_TripLineHealth,
+}
+
+option Deadwire.ReinforcedHealth
+{
+    type = integer, default = 150, min = 25, max = 1000,
+    page = Deadwire,
+    translation = Deadwire_ReinforcedHealth,
+}
+
+option Deadwire.PlayerTripDamage
+{
+    type = integer, default = 5, min = 0, max = 50,
+    page = Deadwire,
+    translation = Deadwire_PlayerTripDamage,
+}
+
+option Deadwire.PlayerTripStumble
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_PlayerTripStumble,
+}
+
+option Deadwire.FriendlyFireWires
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_FriendlyFireWires,
+}
+
+option Deadwire.WireOwnerImmunity
+{
+    type = boolean, default = false,
+    page = Deadwire,
+    translation = Deadwire_WireOwnerImmunity,
+}
+
+option Deadwire.BellSpawnRate
+{
+    type = enum, numValues = 4, default = 3,
+    page = Deadwire,
+    translation = Deadwire_BellSpawnRate,
+}
+
+option Deadwire.LogWirePlacements
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_LogWirePlacements,
+}

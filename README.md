@@ -1,91 +1,110 @@
 # Deadwire
 
-Perimeter trip lines and electric livestock fencing for Project Zomboid (Build 42+).
+Perimeter trip lines and electric fencing for Project Zomboid (Build 42+).
 
-## What Is This
+## What it does
 
-A tiered base defense mod that adds what vanilla PZ is missing: perimeter alarm and deterrent systems built from the mundane materials already scattered across 1993 rural Kentucky.
+Adds perimeter alarm and defense systems using the junk and hardware already lying around 1993 rural Kentucky. Tin cans, fishing line, wire, bells, barbed wire, electric fence chargers from every farm supply store in the county. Vanilla PZ gives you none of this. Deadwire fills that gap.
 
-**Tier 0** -- Tin cans on fishing line. No skills. Day one.
-**Tier 1** -- Wire trip lines with bells. Reusable. Chainable.
-**Tier 2** -- Mechanical pull-alarm system. Bell rings inside your base when the perimeter is breached.
-**Tier 3** -- Electric livestock fencing. Staggers zombies, drains power, fails when the battery dies.
-**Tier 4** -- Modified chargers, trip-wire detonation, electrified barbed wire.
+You're not building turrets. You're stringing cans on fishing line between fence posts so you hear something coming before it's at your door. At the high end you're wiring up a fence charger from a barn to a car battery so the dead get a jolt when they push through. Nothing here makes you safe. You get information and time.
 
-**Camouflage system** -- Hide your trip wires with foraged materials. Opponents need Foraging skill to detect them. Degrades in rain.
+### Tiers
 
-Nothing is overpowered. You get information and time. What you do with it is up to you.
+- **Tier 0** -- Tin cans on fishing line. No skills needed. Day one survival.
+- **Tier 1** -- Wire trip lines with bells. Reusable, longer range, chainable along fences.
+- **Tier 2** -- Mechanical pull-alarm. Trip wire at the perimeter, bell rings inside your base.
+- **Tier 3** -- Electrified perimeter fencing. Staggers zombies on contact. Drains power. Dies when the battery does.
+- **Tier 4** -- Modified chargers, trip-wire detonation, electrified barbed wire.
 
-## Multiplayer First
+### Camouflage
 
-Designed for MP/PvP from the ground up:
-- Server-authoritative architecture (no client-side cheating)
-- Camouflaged wires: per-player visibility based on Foraging skill
-- Faction wire sharing and visibility options
-- Wire placement logging for griefing investigation
-- 73 SandboxVars across 9 settings pages for total server owner control
+Hide your trip wires with foraged twigs and branches. Other players need Foraging skill to spot them. Low Foraging sees nothing. High Foraging sees a faint shimmer, then a clear outline. Degrades in rain. Your faction always sees your own wires.
 
-Works in singleplayer too. Same features, same progression.
+This is the PvP feature. Your perimeter alarm becomes a hidden intelligence network.
 
-## Status
+## Multiplayer
 
-**Pre-alpha.** Design document and implementation plan complete. Research phase done.
+Built for MP from the start. Server-authoritative, no client-side cheating. Everything important is validated on the server before it happens.
 
-## Documentation
+- Per-player camouflage visibility based on individual Foraging skill
+- Faction wire sharing
+- Wire placement logging for admins investigating griefing
+- Owner immunity and friendly fire toggles
+- All gameplay values server-synced via SandboxVars
 
-| Document | Contents |
-|---|---|
-| [docs/DESIGN.md](docs/DESIGN.md) | Full game design document (mechanics, balance, lore) |
-| [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Technical implementation plan (B42 APIs, architecture, code examples) |
+Works fine in singleplayer too.
 
-## Development Phases
+## Installation
 
-| Phase | Content | Status |
-|---|---|---|
-| Phase 1 (MVP) | Tier 0 + Tier 1 + Camouflage + 73 SandboxVars | Not started |
-| Phase 2 | Pull-alarm system (Tier 2) | Planned |
-| Phase 3 | Electric livestock fencing (Tier 3) | Planned |
-| Phase 4 | Advanced applications (Tier 4) | Planned |
+Subscribe on the Steam Workshop. Enable the mod in your mod list. That's it.
 
-Each phase is an independent Steam Workshop release.
+For manual install, drop the `Contents/mods/Deadwire` folder into your PZ mods directory.
 
-## Technical Foundation
+## Server Configuration
 
-Built on confirmed-working B42 APIs:
-- `OnZombieUpdate` + hash-table O(1) tile detection (Spear Traps pattern)
-- `IsoThumpable` per-tile objects linked via ModData (vanilla barbed wire pattern)
-- `setAlphaAndTarget()` for per-client camouflage visibility
-- `WorldSoundManager.addSound()` for zombie-attracting sound events
-- `sendClientCommand`/`sendServerCommand` for MP synchronization
-- Legacy generator radius system for electric fence power
-- `module Base` for MP compatibility (custom modules broken in B42)
-- `SandboxVars` for server-synced configuration
-- `PZAPI.ModOptions` for client preferences
+### Basic settings
+
+The mod ships with 14 server settings that cover what most admins actually want to change. You'll find them in the Deadwire page of your sandbox options.
+
+| Setting | Default |
+|---------|---------|
+| Enable Deadwire mod | On |
+| Allow players to camouflage wires | On |
+| Max placed wires per player | 50 |
+| Wires trigger on player contact | On |
+| Global sound radius multiplier | 1.0x |
+| Tin can trip lines are single-use | On |
+| Tin can wire durability | 50 |
+| Reinforced wire durability | 150 |
+| Damage dealt to players who trip a wire | 5 |
+| Players stumble when tripping a wire | On |
+| Faction members trigger each other's wires | On |
+| Wire placer is immune to their own wires | Off |
+| How often bells appear in loot | Common |
+| Log wire placements to server log | On |
+
+These defaults are tuned for a standard PvP server. Most servers won't need to change anything.
+
+### Advanced settings
+
+If you want full control, there are 60 options available covering individual sound radii, break chances, cooldown timers, tanglefoot zone settings, camouflage detection thresholds and degradation rates, and more.
+
+To enable the advanced settings:
+
+1. Find `docs/sandbox-options-advanced.txt` in the mod folder
+2. Copy it to `Contents/mods/Deadwire/42/media/sandbox-options.txt`, replacing the basic file
+3. Restart the server or start a new game
+
+The advanced options are spread across 7 settings pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, and Loot. Every gameplay-affecting value in the mod is tunable.
+
+You can also edit sandbox vars directly in your server's save files if you know what you're doing.
 
 ## Requirements
 
 - Project Zomboid Build 42+
 - No other mod dependencies
 
+## Status
+
+In development. Phase 1 (Tier 0 + Tier 1 + Camouflage) is the first release. Later phases add pull-alarms, electric fencing, and advanced applications as separate updates.
+
 ## Project Structure
 
 ```
-deadwire/
-  Contents/mods/Deadwire/
-    42/
-      mod.info
-      media/
-        lua/
-          shared/Deadwire/        # Constants, wire network, translations
-          client/Deadwire/        # UI, placement, camouflage visibility
-          server/Deadwire/        # Detection, wire management, power, degradation
-        scripts/                  # Item + recipe definitions
-        sandbox-options.txt       # 73 server-configurable options
-        textures/Items/           # Item icons
-        sound/                    # Sound effects
-  docs/
-    DESIGN.md                     # Game design document
-    IMPLEMENTATION-PLAN.md        # Technical implementation plan
+Contents/mods/Deadwire/
+  mod.info
+  42/
+    media/
+      lua/
+        shared/Deadwire/        -- Wire network, config
+        shared/Translate/EN/    -- Translation files (sandbox labels, items)
+        client/Deadwire/        -- Detection, UI, placement, camouflage visibility
+        server/Deadwire/        -- Wire management, server commands, validation
+      sandbox-options.txt       -- Server settings (basic, 14 options)
+docs/
+  sandbox-options-advanced.txt  -- Full server settings (60 options)
+  DESIGN.md                     -- Game design document
+  IMPLEMENTATION-PLAN.md        -- Technical plan
 ```
 
 ## License

@@ -86,6 +86,7 @@ deadwire/
               Sandbox_Deadwire_EN.txt # Sandbox option labels
           client/
             Deadwire/
+              Detection.lua           # OnZombieUpdate + OnPlayerUpdate tile detection
               UI.lua                  # Context menus, placement UI
               BuildActions.lua        # ISBuildingObject derivatives for placement
               TimedActions.lua        # ISBaseTimedAction for crafting/wiring
@@ -98,7 +99,6 @@ deadwire/
             Deadwire/
               ServerCommands.lua      # OnClientCommand listener, validation
               WireManager.lua         # Server-authoritative wire state
-              Detection.lua           # OnZombieUpdate tile detection
               PowerManager.lua        # Electric fence power drain
               LootDistribution.lua    # ProceduralDistributions additions
               CamoDegradation.lua     # Rain/trigger camouflage durability
@@ -193,7 +193,7 @@ end
 The proven pattern from Spear Traps: `OnZombieUpdate` + hash-table lookup.
 
 ```lua
--- Detection.lua (server)
+-- Detection.lua (client)
 local function onZombieUpdate(zombie)
     if not zombie:isAlive() then return end
 
@@ -509,7 +509,7 @@ Events.OnServerCommand.Add(onServerCommand)
 | `client/Deadwire/ModOptions.lua` | Client preferences | ~60 |
 | `server/Deadwire/ServerCommands.lua` | OnClientCommand handler | ~200 |
 | `server/Deadwire/WireManager.lua` | Server-authoritative wire state | ~150 |
-| `server/Deadwire/Detection.lua` | OnZombieUpdate + OnPlayerUpdate detection | ~100 |
+| `client/Deadwire/Detection.lua` | OnZombieUpdate + OnPlayerUpdate detection | ~100 |
 | `server/Deadwire/LootDistribution.lua` | Bell spawn tables | ~40 |
 | `server/Deadwire/handlers/TripLineHandler.lua` | Tin can trigger logic | ~50 |
 | `server/Deadwire/handlers/ReinforcedHandler.lua` | Wire+bell trigger logic | ~60 |
@@ -612,7 +612,7 @@ Player crafts the trigger and mount, then "connects" them. This is a **timed act
 
 ---
 
-## Phase 3: Electric Livestock Fencing (Tier 3)
+## Phase 3: Electrified Perimeter Fencing (Tier 3)
 
 ### Power System Design
 
@@ -952,7 +952,7 @@ Every tunable value in the mod is exposed via SandboxVars. Organized by category
 | `EnableTier0` | boolean | true | — | Enable tin can trip lines (no skill required). |
 | `EnableTier1` | boolean | true | — | Enable reinforced trip lines + bells. |
 | `EnableTier2` | boolean | true | — | Enable pull-alarm wired systems. |
-| `EnableTier3` | boolean | true | — | Enable electric livestock fencing. |
+| `EnableTier3` | boolean | true | — | Enable electrified perimeter fencing. |
 | `EnableTier4` | boolean | true | — | Enable advanced applications (modified charger, detonation, electrified barbed wire). |
 | `EnableCamouflage` | boolean | true | — | Enable wire camouflage system. |
 | `WireMaxPerPlayer` | integer | 50 | 5-500 | Maximum placed wires per player (prevents server lag from excessive objects). |
@@ -1043,7 +1043,7 @@ Every tunable value in the mod is exposed via SandboxVars. Organized by category
 
 | Option | Type | Default | Range | Description |
 |---|---|---|---|---|
-| `CamoEnabled` | boolean | true | — | Master switch for camouflage system. |
+| `EnableCamouflage` | boolean | true | — | Master switch for camouflage system (in General page). |
 | `CamoMaterialType` | enum | 1 (Twigs) | 1-3 | Required material: 1=Twigs only, 2=Twigs or Branches, 3=Any foraged plant material. |
 | `CamoMaterialCount` | integer | 3 | 1-10 | Number of material items consumed per camouflage application. |
 | `CamoSkillRequired` | enum | 2 (Trapping 2) | 1-4 | Skill gate: 1=None, 2=Trapping 2, 3=Foraging 3, 4=Trapping 2 AND Foraging 2. |
@@ -1120,7 +1120,7 @@ Camouflage (~260 lines) ships with Phase 1 MVP. These estimates exclude sprites,
 
 1. **Mod scaffolding**: `mod.info`, directory structure, `Config.lua`
 2. **WireNetwork.lua**: Hash-table tile index (shared)
-3. **Detection.lua**: `OnZombieUpdate` + `OnPlayerUpdate` with hash-table lookup
+3. **Detection.lua** (client): `OnZombieUpdate` + `OnPlayerUpdate` with hash-table lookup
 4. **ServerCommands.lua**: `OnClientCommand` dispatcher
 5. **EventHandlers.lua**: `OnServerCommand` listener for clients
 
