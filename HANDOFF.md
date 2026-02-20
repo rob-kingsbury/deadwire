@@ -20,6 +20,7 @@ Sprint 1 Foundation complete and audited. All critical code bugs fixed. 5 GitHub
 | Sandbox Options (Advanced) | Done | 60 options, 7 pages, in docs/ |
 | Translation File | Done | Sandbox_Deadwire_EN.txt with descriptive labels |
 | README (Workshop) | Done | Plain English, basic+advanced settings documented |
+| Sprite Checklist | Done | `docs/SPRITES.md` — 40 sprites across all phases |
 | Sprint 2 (Placement) | Not Started | ISBuildingObject, context menus, timed actions, IsoThumpable |
 | Sprint 3 (Sound+Trigger) | Not Started | Handlers, loot, items, recipes |
 | Sprint 4 (Camo+Config) | Not Started | CamoVisibility, SandboxVars, ModOptions |
@@ -83,6 +84,12 @@ Sprint 1 Foundation complete and audited. All critical code bugs fixed. 5 GitHub
 ---
 
 ## Session History
+
+### Session 5 (2026-02-20): Sprite Checklist + Handoff
+
+- Created `docs/SPRITES.md` with all custom sprites needed across 4 phases
+- Confirmed `Base.Bell` is vanilla — Phase 1 needs zero new inventory items
+- Noted: update `Base.Deadwire_Bell` → `Base.Bell` in implementation plan recipes (Sprint 3)
 
 ### Session 4 (2026-02-20): Audit + Fixes + Sandbox Options
 

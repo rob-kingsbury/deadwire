@@ -3,7 +3,7 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 4
+last_session: 5
 continue_with: "Test Sprint 1 in-game (Issue #5), then Sprint 2: Placement"
 
 tech:
@@ -107,6 +107,11 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
 
 ## Recent Changes
+
+### Session 5 (2026-02-20): Sprite Checklist + Handoff
+- Created `docs/SPRITES.md`: comprehensive sprite checklist for all 4 phases (40 sprites total)
+- Confirmed `Base.Bell` is vanilla — no custom bell item needed, Phase 1 needs zero new inventory items
+- Note: Implementation plan recipes still reference `Base.Deadwire_Bell` — update to `Base.Bell` when writing Sprint 3
 
 ### Session 4 (2026-02-20): Audit + Fixes + Sandbox Options
 - Full code audit: 3 critical, 4 moderate issues found and fixed
