@@ -3,7 +3,7 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 5
+last_session: 6
 continue_with: "Test Sprint 1 in-game (Issue #5), then Sprint 2: Placement"
 
 tech:
@@ -25,6 +25,28 @@ workflow:
   phases: 4 (MVP → Pull-Alarms → Electric Fencing → Advanced)
   current_phase: 1
 ```
+
+## B42 Mod Structure (REQUIRED)
+
+PZ B42 requires this exact folder layout for mods to appear in-game:
+
+```
+Contents/mods/Deadwire/
+  mod.info              ← root mod.info (poster=42/poster.png)
+  42/
+    mod.info            ← REQUIRED duplicate (PZ won't detect mod without this)
+    poster.png
+    media/
+      sandbox-options.txt
+      lua/
+        client/
+        server/
+        shared/
+          Translate/EN/
+  common/               ← REQUIRED empty dir (standard B42 structure)
+```
+
+Both `mod.info` files must exist. The `common/` directory must exist even if empty.
 
 ## Key Rules
 
@@ -73,6 +95,8 @@ Communication: Client `sendClientCommand` → Server validates + executes → `s
 | IsoZombie ref storage | Object pooling recycles | Fresh references per tick |
 | `DisplayName` in scripts | Removed in 42.13 | Translation files only |
 | Bare tag names | 42.13 requires namespaces | `deadwire:tagname` |
+| Missing `42/mod.info` | Mod won't appear in PZ mod list | Duplicate mod.info in both root and `42/` |
+| Missing `common/` dir | Non-standard, may break detection | Always include `common/` even if empty |
 
 ## Camouflage System (Ships Phase 1)
 
@@ -107,6 +131,13 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
 
 ## Recent Changes
+
+### Session 6 (2026-02-21): Fix mod structure for PZ detection
+- CRITICAL FIX: Mod was invisible in PZ mod list — missing `42/mod.info`
+- Added `42/mod.info` (required duplicate of root mod.info)
+- Added `common/` directory (standard B42 mod structure)
+- Fixed `poster=poster.png` → `poster=42/poster.png` in root mod.info
+- Documented B42 mod structure requirement in context.md
 
 ### Session 5 (2026-02-20): Sprite Checklist + Handoff
 - Created `docs/SPRITES.md`: comprehensive sprite checklist for all 4 phases (40 sprites total)
