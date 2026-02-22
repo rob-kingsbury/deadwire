@@ -232,3 +232,7 @@ function DeadwireNetwork.clear()
     camoTiles = {}
     nextNetworkId = 1
 end
+
+function DeadwireNetwork.setNextNetworkId(id)
+    nextNetworkId = id
+end
