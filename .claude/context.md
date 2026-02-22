@@ -3,8 +3,8 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 8
-continue_with: "Sprint 3: Sound + Trigger system"
+last_session: 9
+continue_with: "Build Python .pack/.tiles packer tool (Issue #11), then test Sprint 3 with custom sprites"
 
 tech:
   stack: pz-lua-mod
@@ -120,7 +120,7 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 
 | Phase | Content | Status |
 |---|---|---|
-| Phase 1 (MVP) | Tier 0 + Tier 1 + Camouflage + SandboxVars | Sprint 1 PASSED, Sprint 2 next |
+| Phase 1 (MVP) | Tier 0 + Tier 1 + Camouflage + SandboxVars | Sprint 1-2 PASSED, Sprint 3 in progress |
 | Phase 2 (Pull-Alarms) | Tier 2: mechanical pull-cord alarm system | Not Started |
 | Phase 3 (Electric) | Tier 3: electrified perimeter fencing + power | Not Started |
 | Phase 4 (Advanced) | Tier 4: modified charger, detonation, electrified barbed | Not Started |
@@ -129,10 +129,30 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 
 1. Foundation: WireNetwork hash-table, Detection, ServerCommands, EventHandlers — **DONE (tested in-game)**
 2. Placement: ISBuildingObject, context menus, timed actions — **PASSED (tested in-game)**
-3. Sound + Trigger: handlers, loot distribution, item/recipe scripts
+3. Sound + Trigger: handlers, loot distribution, item/recipe scripts — **CODE COMPLETE, needs sprite tool + testing**
 4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
 
 ## Recent Changes
+
+### Session 9 (2026-02-22): Sprint 3 code complete + bug fixes
+- Sprint 3 implementation: TriggerHandlers.lua, sound scripts, item/recipe scripts, translation files, loot distribution, ClientCommands wireTriggered wrapper, ServerCommands WireTriggered handler
+- Created 3 kit items (TinCanTripLineKit, ReinforcedTripLineKit, BellTripLineKit) with recipes
+- Created sound scripts (Deadwire_TinCanRattle, Deadwire_WireRattle, Deadwire_BellRing)
+- First test round: icons broken (wrong path), display names broken (wrong translation file format), wires impassable (zombies thumping)
+- Fixed icon paths: moved to `textures/Item_Name.png` (no subdirectory, `Item_` prefix)
+- Fixed translation: renamed `Items_EN.txt` → `ItemName_EN.txt`, table `ItemName_EN`, keys `ItemName_Base.*`
+- Fixed passability: `setIsThumpable(false)`, `setBlockAllTheSquare(false)` in WireManager
+- Fixed sound scripts: added `is3D = true` for positional audio
+- Second test round: triggers confirmed working (both zombie + player), but sounds silent, wrong fallback sprite, no DisplayCategory, wireType shown as raw key
+- Root cause: OGG files were stereo (PZ requires mono for is3D=true, fails silently)
+- Converted OGGs to mono (user provided), replaced in mod
+- Added `DisplayCategory = Deadwire` to all item scripts
+- Fixed remove wire label: shows "Remove Tin Can Trip Line" instead of raw wireType
+- UI.lua: placement menu only shows when player has kits in inventory
+- Created Issues #9 (TileZed sprites), #10 (tanglefoot kit), #11 (Python packer tool)
+- Installed Rust (for pz-pack), but no MSVC linker — decided to build Python packer tool instead
+- Updated README with current state and accurate project structure
+- **Blocking**: custom world sprites need `.pack` + `.tiles` tilesheet (individual PNGs don't work for IsoThumpable)
 
 ### Session 8 (2026-02-21): Fix BuildActions load order + audit
 - CRITICAL FIX: Moved BuildActions.lua from client/ to server/ (ISBuildingObject is in server/, loads after client/)

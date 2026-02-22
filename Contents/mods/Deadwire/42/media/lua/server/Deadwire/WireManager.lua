@@ -13,14 +13,22 @@ DeadwireWireManager = DeadwireWireManager or {}
 -- GlobalModData key for persistence
 local SAVE_KEY = "DeadwireWires"
 
--- Placeholder sprite (vanilla barbed wire until custom art exists)
-local PLACEHOLDER_SPRITE = "construction_01_24"
+-- Resolve sprite name for a wire type and orientation
+local function getSprite(wireType, north)
+    local sprites = DeadwireConfig.Sprites[wireType]
+    if not sprites then return DeadwireConfig.FALLBACK_SPRITE end
+    if north then
+        return sprites.north or DeadwireConfig.FALLBACK_SPRITE
+    else
+        return sprites.east or DeadwireConfig.FALLBACK_SPRITE
+    end
+end
 
 -----------------------------------------------------------
 -- Wire Creation
 -----------------------------------------------------------
 
-function DeadwireWireManager.createWire(sq, wireType, ownerId, networkId)
+function DeadwireWireManager.createWire(sq, wireType, ownerId, networkId, north)
     if not sq then return nil end
 
     local x, y, z = sq:getX(), sq:getY(), sq:getZ()
@@ -38,12 +46,14 @@ function DeadwireWireManager.createWire(sq, wireType, ownerId, networkId)
     end
 
     -- Create IsoThumpable in the world
-    local obj = IsoThumpable.new(getWorld():getCell(), sq, PLACEHOLDER_SPRITE, false, nil)
+    local sprite = getSprite(wireType, north or false)
+    local obj = IsoThumpable.new(getWorld():getCell(), sq, sprite, north or false, nil)
     obj:setName("DeadwireTripLine")
     obj:setMaxHealth(defaults.health or 50)
     obj:setHealth(defaults.health or 50)
     obj:setCanPassThrough(true)
-    obj:setIsThumpable(true)
+    obj:setBlockAllTheSquare(false)
+    obj:setIsThumpable(false)
 
     -- Store wire data in object ModData
     local data = obj:getModData()

@@ -139,6 +139,83 @@ handlers["RemoveWire"] = function(player, args)
 end
 
 -----------------------------------------------------------
+-- WireTriggered: Client reports a wire was triggered
+-- Server processes state changes (break, cooldown, camo degrade)
+-- and broadcasts to all clients for MP sound.
+-----------------------------------------------------------
+
+handlers["WireTriggered"] = function(player, args)
+    if not hasPosition(args) or not args.wireType then return end
+
+    local wire = DeadwireNetwork.getTile(args.x, args.y, args.z)
+    if not wire then return end
+
+    local wireType = wire.wireType
+    local defaults = DeadwireConfig.WireDefaults[wireType]
+    if not defaults then return end
+
+    -- Determine sound info for broadcast
+    local soundMap = {
+        tin_can_tripline    = DeadwireConfig.Sounds.TIN_CAN_RATTLE,
+        reinforced_tripline = DeadwireConfig.Sounds.WIRE_RATTLE,
+        bell_tripline       = DeadwireConfig.Sounds.BELL_RING,
+    }
+    local soundName = soundMap[wireType]
+    local soundRadius = defaults.soundRadius or 25
+    local multiplier = DeadwireConfig.getSandbox("SoundMultiplier", 1.0)
+    soundRadius = math.floor(soundRadius * multiplier)
+
+    -- State changes based on wire type
+    if defaults.breakOnTrigger then
+        -- Single-use: destroy wire
+        DeadwireWireManager.destroyWire(args.x, args.y, args.z)
+        sendServerCommand(DeadwireConfig.MODULE, "WireDestroyed", {
+            x = args.x,
+            y = args.y,
+            z = args.z,
+        })
+    else
+        -- Reusable: set cooldown
+        local cooldownSec = defaults.cooldownSeconds or 36
+        local cooldownHours = cooldownSec / 3600
+        DeadwireNetwork.setCooldown(args.x, args.y, args.z, cooldownHours)
+    end
+
+    -- Degrade camo durability if camouflaged
+    if wire.camouflaged then
+        local degrade = DeadwireConfig.getSandbox("CamoTriggerDegrade", 15)
+        local newDur = (wire.camoDurability or 0) - degrade
+        if newDur <= 0 then
+            DeadwireNetwork.setCamouflaged(args.x, args.y, args.z, false, 0)
+            sendServerCommand(DeadwireConfig.MODULE, "WireCamouflaged", {
+                x = args.x, y = args.y, z = args.z,
+                camouflaged = false, durability = 0,
+            })
+        else
+            wire.camoDurability = newDur
+        end
+    end
+
+    -- Log trigger if enabled
+    if DeadwireConfig.getSandbox("LogWireTriggers", false) then
+        local username = player:getUsername() or "SP"
+        DeadwireConfig.log("Wire triggered: " .. wireType .. " at "
+            .. args.x .. "," .. args.y .. "," .. args.z .. " by " .. username)
+    end
+
+    -- Broadcast to all clients for MP sound (detecting client already played locally)
+    if soundName then
+        sendServerCommand(DeadwireConfig.MODULE, "WireTriggered", {
+            x = args.x,
+            y = args.y,
+            z = args.z,
+            soundName = soundName,
+            audioRadius = soundRadius,
+        })
+    end
+end
+
+-----------------------------------------------------------
 -- CamouflageWire: Client requests camouflage application
 -----------------------------------------------------------
 

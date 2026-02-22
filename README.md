@@ -84,9 +84,19 @@ You can also edit sandbox vars directly in your server's save files if you know 
 - Project Zomboid Build 42+
 - No other mod dependencies
 
-## Status
+## Current State
 
-In development. Phase 1 (Tier 0 + Tier 1 + Camouflage) is the first release. Later phases add pull-alarms, electric fencing, and advanced applications as separate updates.
+Phase 1 (Tier 0 + Tier 1) is in active development. What works right now:
+
+- **Wire placement** -- Right-click ground with a kit in inventory to place trip lines. Four types: tin can, reinforced, bell, tanglefoot.
+- **Detection** -- Zombies and players crossing a wire tile trigger the wire. Per-type behavior: noise alerts for alarm wires, knockdown for tanglefoot.
+- **Sound effects** -- Tin can rattle, wire rattle, bell ring. Positional 3D audio attracts nearby zombies.
+- **Crafting** -- Three kit recipes using vanilla materials (tin cans, fishing line, wire, nails, bells).
+- **Removal** -- Right-click a placed wire to pick it up. Owner and admin only.
+- **Multiplayer** -- Server-authoritative state, client commands validated before execution.
+- **Sandbox options** -- 14 tunable settings (sound radius, durability, player damage, etc.)
+
+Not yet implemented: camouflage system, custom world sprites (using vanilla placeholder), electric fencing (Phase 3), pull-alarms (Phase 2).
 
 ## Project Structure
 
@@ -94,17 +104,23 @@ In development. Phase 1 (Tier 0 + Tier 1 + Camouflage) is the first release. Lat
 Contents/mods/Deadwire/
   mod.info
   42/
+    mod.info
     media/
       lua/
         shared/Deadwire/        -- Wire network, config
-        shared/Translate/EN/    -- Translation files (sandbox labels, items)
-        client/Deadwire/        -- Detection, UI, placement, camouflage visibility
-        server/Deadwire/        -- Wire management, server commands, validation
+        shared/Translate/EN/    -- Translation files (sandbox, items, recipes)
+        client/Deadwire/        -- Detection, trigger handlers, UI, client commands
+        server/Deadwire/        -- Wire manager, build actions, server commands, loot
+      scripts/                  -- Item, recipe, and sound definitions
+      sound/                    -- OGG sound effects (mono, 3D positional)
+      textures/                 -- Item icons (32x32 PNG)
       sandbox-options.txt       -- Server settings (basic, 14 options)
+  common/                       -- Required empty dir (B42 structure)
 docs/
   sandbox-options-advanced.txt  -- Full server settings (60 options)
   DESIGN.md                     -- Game design document
   IMPLEMENTATION-PLAN.md        -- Technical plan
+  SPRITES.md                    -- Sprite checklist (all phases)
 ```
 
 ## License

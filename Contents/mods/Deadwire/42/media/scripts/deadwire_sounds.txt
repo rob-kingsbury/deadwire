@@ -1,0 +1,32 @@
+sound Deadwire_TinCanRattle
+{
+    category = Item,
+    is3D = true,
+    clip
+    {
+        file = media/sound/tin_can_rattle.ogg,
+        distanceMax = 200,
+    }
+}
+
+sound Deadwire_WireRattle
+{
+    category = Item,
+    is3D = true,
+    clip
+    {
+        file = media/sound/wire_rattle.ogg,
+        distanceMax = 200,
+    }
+}
+
+sound Deadwire_BellRing
+{
+    category = Item,
+    is3D = true,
+    clip
+    {
+        file = media/sound/bell_ring.ogg,
+        distanceMax = 300,
+    }
+}

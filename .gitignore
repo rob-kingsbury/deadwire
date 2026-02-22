@@ -16,3 +16,6 @@ desktop.ini
 scratch/
 *.bak
 *.tmp
+
+# Source assets (not part of mod)
+assets-testing/

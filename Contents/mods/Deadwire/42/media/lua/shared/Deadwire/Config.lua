@@ -73,6 +73,28 @@ DeadwireConfig.WireDefaults = {
 }
 
 -----------------------------------------------------------
+-- Sprites (per wire type)
+-- Custom world sprites require .pack + .tiles built with TileZed.
+-- Until a tilesheet pack is created, Sprites stays empty and
+-- all wires use FALLBACK_SPRITE (vanilla barbed wire).
+-- When ready, populate with tilesheet_index names, e.g.:
+--   tin_can_tripline = { north = "deadwire_01_0", east = "deadwire_01_1" },
+-----------------------------------------------------------
+DeadwireConfig.Sprites = {}
+
+-- Fallback sprite (vanilla barbed wire) used until custom tilesheet is ready
+DeadwireConfig.FALLBACK_SPRITE = "construction_01_24"
+
+-----------------------------------------------------------
+-- Kit Items (wireType -> inventory item fullname)
+-----------------------------------------------------------
+DeadwireConfig.KitItems = {
+    tin_can_tripline    = "Base.Deadwire_TinCanTripLineKit",
+    reinforced_tripline = "Base.Deadwire_ReinforcedTripLineKit",
+    bell_tripline       = "Base.Deadwire_BellTripLineKit",
+}
+
+-----------------------------------------------------------
 -- Sound Names
 -----------------------------------------------------------
 DeadwireConfig.Sounds = {

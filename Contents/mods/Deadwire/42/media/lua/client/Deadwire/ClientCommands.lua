@@ -33,6 +33,15 @@ function DeadwireClientCommands.camouflageWire(x, y, z)
     })
 end
 
+function DeadwireClientCommands.wireTriggered(x, y, z, wireType)
+    sendClientCommand(DeadwireConfig.MODULE, "WireTriggered", {
+        x = x,
+        y = y,
+        z = z,
+        wireType = wireType,
+    })
+end
+
 function DeadwireClientCommands.debugPlaceWire(wireType)
     sendClientCommand(DeadwireConfig.MODULE, "DebugPlaceWire", {
         wireType = wireType,

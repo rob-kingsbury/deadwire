@@ -1,9 +1,6 @@
 -- Deadwire BuildActions: ISBuildingObject derivative for wire placement
 -- Server: ISBuildingObject and derivatives must be in server/ (PZ load order)
 -- create() runs server-side in MP via PZ's ISBuildAction:perform
---
--- Sprint 2: No material checks. Free placement for testing mechanics.
--- Sprint 3 adds item consumption and skill requirements.
 
 require "Deadwire/Config"
 require "Deadwire/WireNetwork"
@@ -23,7 +20,20 @@ function ISDeadwireTripLine:create(x, y, z, north, sprite)
     local username = self.character:getUsername() or "SP"
     local networkId = DeadwireNetwork.generateNetworkId()
 
-    local obj = DeadwireWireManager.createWire(sq, wireType, username, networkId)
+    -- Consume kit item from inventory (if this wire type requires one)
+    local kitItem = DeadwireConfig.KitItems[wireType]
+    if kitItem then
+        local inv = self.character:getInventory()
+        local item = inv:getFirstTypeRecurse(kitItem)
+        if item then
+            inv:Remove(item)
+        else
+            DeadwireConfig.debugLog("BuildActions: missing kit " .. kitItem)
+            return
+        end
+    end
+
+    local obj = DeadwireWireManager.createWire(sq, wireType, username, networkId, north)
     if not obj then return end
 
     sendServerCommand(DeadwireConfig.MODULE, "WirePlaced", {
@@ -41,11 +51,17 @@ function ISDeadwireTripLine:new(character, wireType)
     setmetatable(o, self)
     self.__index = self
     o:init()
-    o:setSprite("construction_01_24")
-    o:setNorthSprite("construction_01_24")
+
+    -- Set per-type sprites (fallback to vanilla barbed wire)
+    local wt = wireType or DeadwireConfig.WireTypes.TIN_CAN
+    local sprites = DeadwireConfig.Sprites[wt]
+    local fallback = DeadwireConfig.FALLBACK_SPRITE
+    o:setSprite(sprites and sprites.east or fallback)
+    o:setNorthSprite(sprites and sprites.north or fallback)
+
     o.character = character
     o.player = character:getPlayerNum()
-    o.wireType = wireType or DeadwireConfig.WireTypes.TIN_CAN
+    o.wireType = wt
     o.name = "Trip Wire"
     o.canBeAlwaysPlaced = true
     o.noNeedHammer = true

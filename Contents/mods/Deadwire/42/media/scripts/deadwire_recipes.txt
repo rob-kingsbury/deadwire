@@ -1,0 +1,59 @@
+module Base
+{
+    craftRecipe Deadwire_CraftTinCanTripLine
+    {
+        time = 120,
+        tags = InHandCraft;CanBeDoneInDark,
+        category = Deadwire,
+        inputs
+        {
+            item 3 [Base.TinCanEmpty],
+            item 1 [Base.FishingLine;Base.Twine],
+            item 2 [Base.Nails],
+        }
+        outputs
+        {
+            item 1 Base.Deadwire_TinCanTripLineKit,
+        }
+    }
+
+    craftRecipe Deadwire_CraftReinforcedTripLine
+    {
+        time = 200,
+        tags = AnySurfaceCraft,
+        category = Deadwire,
+        SkillRequired = Carpentry:2;Trapping:2,
+        xpAward = Carpentry:15;Trapping:15,
+        inputs
+        {
+            item 1 [Base.Wire],
+            item 3 [Base.TinCanEmpty],
+            item 2 [Base.Nails],
+            item 1 [Base.Hammer] mode:keep flags[MayDegradeLight],
+        }
+        outputs
+        {
+            item 1 Base.Deadwire_ReinforcedTripLineKit,
+        }
+    }
+
+    craftRecipe Deadwire_CraftBellTripLine
+    {
+        time = 200,
+        tags = AnySurfaceCraft,
+        category = Deadwire,
+        SkillRequired = Carpentry:2;Trapping:2,
+        xpAward = Carpentry:15;Trapping:15,
+        inputs
+        {
+            item 1 [Base.Wire],
+            item 1 [Base.Bell],
+            item 2 [Base.Nails],
+            item 1 [Base.Hammer] mode:keep flags[MayDegradeLight],
+        }
+        outputs
+        {
+            item 1 Base.Deadwire_BellTripLineKit,
+        }
+    }
+}
