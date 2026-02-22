@@ -6,6 +6,7 @@
 
 require "Deadwire/Config"
 require "Deadwire/WireNetwork"
+require "Deadwire/WireManager"
 
 DeadwireServerCommands = DeadwireServerCommands or {}
 
@@ -81,11 +82,13 @@ handlers["PlaceWire"] = function(player, args)
         return
     end
 
-    -- TODO Sprint 2: Create IsoThumpable, consume materials from inventory
-    -- For now, just register in the network so detection works
-
+    -- Create IsoThumpable + register in WireNetwork + persist
     local networkId = DeadwireNetwork.generateNetworkId()
-    DeadwireNetwork.registerTile(args.x, args.y, args.z, networkId, wireType, username)
+    local obj = DeadwireWireManager.createWire(sq, wireType, username, networkId)
+    if not obj then
+        DeadwireConfig.log("PlaceWire: WireManager.createWire failed")
+        return
+    end
 
     if DeadwireConfig.getSandbox("LogWirePlacements", true) then
         DeadwireConfig.log("Wire placed: " .. wireType .. " at "
@@ -125,8 +128,8 @@ handlers["RemoveWire"] = function(player, args)
         return
     end
 
-    -- TODO Sprint 2: Remove IsoThumpable from world, return materials
-    DeadwireNetwork.unregisterTile(args.x, args.y, args.z)
+    -- Destroy IsoThumpable + unregister + remove from save
+    DeadwireWireManager.destroyWire(args.x, args.y, args.z)
 
     sendServerCommand(DeadwireConfig.MODULE, "WireDestroyed", {
         x = args.x,
@@ -179,11 +182,12 @@ handlers["DebugPlaceWire"] = function(player, args)
 
     -- Remove existing wire at this position first
     if DeadwireNetwork.getTile(x, y, z) then
-        DeadwireNetwork.unregisterTile(x, y, z)
+        DeadwireWireManager.destroyWire(x, y, z)
     end
 
     local networkId = DeadwireNetwork.generateNetworkId()
-    DeadwireNetwork.registerTile(x, y, z, networkId, wireType, username)
+    local obj = DeadwireWireManager.createWire(sq, wireType, username, networkId)
+    if not obj then return end
 
     DeadwireConfig.log("DEBUG wire at " .. x .. "," .. y .. "," .. z .. " type=" .. wireType)
 

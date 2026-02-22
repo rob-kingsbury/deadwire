@@ -3,8 +3,8 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 6
-continue_with: "Sprint 2: Placement system (ISBuildingObject, context menus, timed actions)"
+last_session: 7
+continue_with: "Sprint 2: In-game test of placement system"
 
 tech:
   stack: pz-lua-mod
@@ -128,11 +128,21 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 ## Sprint Plan (Phase 1)
 
 1. Foundation: WireNetwork hash-table, Detection, ServerCommands, EventHandlers — **DONE (tested in-game)**
-2. Placement: ISBuildingObject, context menus, timed actions
+2. Placement: ISBuildingObject, context menus, timed actions — **DONE (needs in-game test)**
 3. Sound + Trigger: handlers, loot distribution, item/recipe scripts
 4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
 
 ## Recent Changes
+
+### Session 7 (2026-02-21): Sprint 2 Placement System implemented
+- Created WireManager.lua: server-side wire lifecycle, IsoThumpable creation/destruction, GlobalModData persistence, save/load, chunk reconnect
+- Created BuildActions.lua: ISBuildingObject derivative for wire placement (ISDeadwireTripLine)
+- Created UI.lua: right-click context menu for placement (submenu with all tier 0/1 types) and removal (owner/admin)
+- Created ClientCommands.lua: sendClientCommand wrappers
+- Updated ServerCommands.lua: PlaceWire, RemoveWire, DebugPlaceWire all use WireManager (real IsoThumpable + persistence)
+- Updated EventHandlers.lua: WirePlaced handler caches IsoObject ref for camo visibility
+- Fixes #1 (WireNetwork persistence) and #4 (nextNetworkId persistence) via WireManager.loadAll
+- Sprint 2 note: no material cost (free placement), vanilla barbed wire placeholder sprite
 
 ### Session 6 (2026-02-21): Fix mod structure, in-game test, Sprint 1 PASSED
 - CRITICAL FIX: Mod was invisible in PZ mod list — missing `42/mod.info`

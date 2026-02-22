@@ -2,9 +2,9 @@
 
 ## Current Priority
 
-**Sprint 2: Placement System — IN PROGRESS (Step 1 of 7 done)**
+**Sprint 2: Placement System — CODE COMPLETE (needs in-game test)**
 
-Plan approved and written to `.claude/plans/refactored-pondering-starfish.md`. Implementation started: `WireNetwork.setNextNetworkId()` added. Remaining: WireManager.lua, BuildActions.lua, UI.lua, ClientCommands.lua, ServerCommands update, EventHandlers update.
+All 7 steps implemented. 4 new files + 3 updated files. Fixes #1 and #4 (persistence). Ready for in-game testing.
 
 ---
 
@@ -20,7 +20,7 @@ Plan approved and written to `.claude/plans/refactored-pondering-starfish.md`. I
 | Translation File | Done | `Sandbox_EN.txt` (renamed from Sandbox_Deadwire_EN.txt) |
 | README (Workshop) | Done | Plain English |
 | Sprite Checklist | Done | `docs/SPRITES.md` — 40 sprites across all phases |
-| Sprint 2 (Placement) | **In Progress** | Step 1/7: WireNetwork updated. Plan at `.claude/plans/` |
+| Sprint 2 (Placement) | **Code Complete** | Needs in-game test |
 | Sprint 3 (Sound+Trigger) | Not Started | Handlers, loot, items, recipes |
 | Sprint 4 (Camo+Config) | Not Started | CamoVisibility, SandboxVars, ModOptions |
 
@@ -30,30 +30,28 @@ Plan approved and written to `.claude/plans/refactored-pondering-starfish.md`. I
 
 | # | Title | Labels | Status |
 |---|-------|--------|--------|
-| 1 | WireNetwork state not persisted across save/load | bug, phase-1, sprint-2 | Sprint 2 fixes this |
+| 1 | WireNetwork state not persisted across save/load | bug, phase-1, sprint-2 | **Fixed** (WireManager.loadAll) |
 | 2 | No sound feedback in singleplayer | bug, phase-1 | Open |
 | 3 | Zombie/player modData de-dup flags never clear | design-review, phase-1 | Open |
-| 4 | nextNetworkId not persisted across save/load | bug, sprint-2 | Sprint 2 fixes this |
+| 4 | nextNetworkId not persisted across save/load | bug, sprint-2 | **Fixed** (WireManager.loadAll) |
 | 5 | Test Sprint 1 foundation in-game | testing, phase-1 | **Closed** (passed) |
 | 6 | Verify sandbox option labels display correctly | testing, phase-1 | Open |
-| 7 | Sprint 2 pre-flight: verify PZ APIs before implementation | phase-1, sprint-2 | Open |
+| 7 | Sprint 2 pre-flight: verify PZ APIs before implementation | phase-1, sprint-2 | Superseded (implemented directly) |
 
 ---
 
-## Sprint 2 Plan Summary
+## Sprint 2 Files
 
-4 new files + 3 file updates. No custom sprites (vanilla placeholder). No item scripts (free placement for testing). Key architecture: `ISBuildingObject:derive()` → `create()` runs server-side via PZ's `createBuildAction` in MP → creates IsoThumpable directly → `sendServerCommand("WirePlaced")` syncs clients. Save/load via `ModData.getOrCreate("DeadwireWires")`.
+**New files:**
+- `server/Deadwire/WireManager.lua` — wire lifecycle, IsoThumpable create/destroy, GlobalModData persistence, save/load on OnGameStart, chunk reconnect on LoadGridsquare
+- `client/Deadwire/BuildActions.lua` — ISBuildingObject:derive("ISDeadwireTripLine"), create() calls WireManager on server
+- `client/Deadwire/UI.lua` — right-click context menu: "Place Deadwire..." submenu (4 wire types) + "Remove Wire" (owner/admin)
+- `client/Deadwire/ClientCommands.lua` — sendClientCommand wrappers
 
-**Implementation order:**
-1. ~~WireNetwork.lua — add `setNextNetworkId()`~~ **DONE**
-2. WireManager.lua — server-side wire lifecycle + GlobalModData persistence
-3. BuildActions.lua — ISBuildingObject derivative
-4. UI.lua — context menu for placement + removal
-5. ClientCommands.lua — sendClientCommand wrappers
-6. ServerCommands.lua — wire RemoveWire to use WireManager
-7. EventHandlers.lua — cache IsoObject in WirePlaced handler
-
-Full plan: `.claude/plans/refactored-pondering-starfish.md`
+**Updated files:**
+- `server/Deadwire/ServerCommands.lua` — PlaceWire/RemoveWire/DebugPlaceWire use WireManager
+- `client/Deadwire/EventHandlers.lua` — WirePlaced caches IsoObject ref
+- `shared/Deadwire/WireNetwork.lua` — setNextNetworkId() (step 1, previous session)
 
 ---
 
@@ -75,6 +73,13 @@ Full plan: `.claude/plans/refactored-pondering-starfish.md`
 ---
 
 ## Session History
+
+### Session 7 (2026-02-21): Sprint 2 Placement — code complete
+
+- Created WireManager.lua, BuildActions.lua, UI.lua, ClientCommands.lua
+- Updated ServerCommands.lua, EventHandlers.lua to use WireManager
+- Fixes #1 and #4 (persistence bugs)
+- Synced to PZ mods folder
 
 ### Session 6 (2026-02-21): Sprint 1 PASSED + Sprint 2 started
 
@@ -106,8 +111,7 @@ Full plan: `.claude/plans/refactored-pondering-starfish.md`
 ## To Resume
 
 ```
-Deadwire — Sprint 2 Placement in progress (step 1/7 done).
-Read plan at .claude/plans/refactored-pondering-starfish.md
+Deadwire — Sprint 2 code complete, needs in-game test.
 Read CLAUDE.md and .claude/context.md for full project context.
-Continue with step 2: Create WireManager.lua
+Next: Test placement in-game, then Sprint 3 (Sound + Trigger).
 ```

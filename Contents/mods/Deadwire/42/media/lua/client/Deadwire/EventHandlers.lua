@@ -64,6 +64,20 @@ handlers["WirePlaced"] = function(args)
         args.wireType,
         args.ownerId
     )
+
+    -- Cache the IsoObject reference for client-side camo visibility
+    local sq = getCell():getGridSquare(args.x, args.y, args.z)
+    if sq then
+        local objects = sq:getSpecialObjects()
+        for i = 0, objects:size() - 1 do
+            local obj = objects:get(i)
+            if obj and obj:getModData() and obj:getModData()["dw_type"] then
+                DeadwireNetwork.setIsoObject(args.x, args.y, args.z, obj)
+                break
+            end
+        end
+    end
+
     DeadwireConfig.debugLog("Wire placed at " .. args.x .. "," .. args.y .. "," .. args.z)
 end
 
