@@ -2,9 +2,9 @@
 
 ## Current Priority
 
-**Sprint 2: Placement System — CODE COMPLETE (needs in-game test)**
+**Sprint 3: Sound + Trigger System**
 
-All 7 steps implemented. 4 new files + 3 updated files. Fixes #1 and #4 (persistence). Ready for in-game testing.
+Sprint 2 PASSED (all 6 tests). Next: trigger handlers, sound effects, loot distribution, item/recipe scripts.
 
 ---
 
@@ -20,7 +20,7 @@ All 7 steps implemented. 4 new files + 3 updated files. Fixes #1 and #4 (persist
 | Translation File | Done | `Sandbox_EN.txt` (renamed from Sandbox_Deadwire_EN.txt) |
 | README (Workshop) | Done | Plain English |
 | Sprite Checklist | Done | `docs/SPRITES.md` — 40 sprites across all phases |
-| Sprint 2 (Placement) | **Code Complete** | Needs in-game test |
+| Sprint 2 (Placement) | **PASSED** | All 6 tests pass (Session 8) |
 | Sprint 3 (Sound+Trigger) | Not Started | Handlers, loot, items, recipes |
 | Sprint 4 (Camo+Config) | Not Started | CamoVisibility, SandboxVars, ModOptions |
 
@@ -35,8 +35,9 @@ All 7 steps implemented. 4 new files + 3 updated files. Fixes #1 and #4 (persist
 | 3 | Zombie/player modData de-dup flags never clear | design-review, phase-1 | Open |
 | 4 | nextNetworkId not persisted across save/load | bug, sprint-2 | **Fixed** (WireManager.loadAll) |
 | 5 | Test Sprint 1 foundation in-game | testing, phase-1 | **Closed** (passed) |
-| 6 | Verify sandbox option labels display correctly | testing, phase-1 | Open |
+| 6 | Verify sandbox option labels display correctly | testing, phase-1 | **Closed** (confirmed Session 8) |
 | 7 | Sprint 2 pre-flight: verify PZ APIs before implementation | phase-1, sprint-2 | Superseded (implemented directly) |
+| 8 | Wire placed near door blocks passage | bug, phase-1 | Open |
 
 ---
 
@@ -75,12 +76,14 @@ All 7 steps implemented. 4 new files + 3 updated files. Fixes #1 and #4 (persist
 
 ## Session History
 
-### Session 8 (2026-02-21): Fix BuildActions load order + audit
+### Session 8 (2026-02-21): Sprint 2 PASSED
 
-- CRITICAL: Moved BuildActions.lua from client/ to server/ (ISBuildingObject not available at client load time)
+- CRITICAL FIX: Moved BuildActions.lua from client/ to server/ (ISBuildingObject not available at client load time)
 - Simplified create() — calls WireManager directly, no fragile branching
 - Fixed UI.lua submenu: ISContextMenu:getNew(context), removed require for BuildActions
 - Confirmed sandbox options work in-game, closed Issue #6
+- **Sprint 2 in-game test PASSED** (all 6 tests: place all types, no stacking, remove, persistence, detection)
+- Created Issue #8 (wire near door blocks passage)
 
 ### Session 7 (2026-02-21): Sprint 2 Placement — code complete
 
@@ -119,7 +122,7 @@ All 7 steps implemented. 4 new files + 3 updated files. Fixes #1 and #4 (persist
 ## To Resume
 
 ```
-Deadwire — Sprint 2 code complete, needs in-game test.
+Deadwire — Sprint 2 PASSED. Ready for Sprint 3.
 Read CLAUDE.md and .claude/context.md for full project context.
-Next: Test placement in-game, then Sprint 3 (Sound + Trigger).
+Next: Sprint 3 (Sound + Trigger) — handlers, loot, items, recipes.
 ```

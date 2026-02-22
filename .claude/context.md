@@ -4,7 +4,7 @@
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
 last_session: 8
-continue_with: "Sprint 2: In-game test of placement system (restart PZ)"
+continue_with: "Sprint 3: Sound + Trigger system"
 
 tech:
   stack: pz-lua-mod
@@ -128,7 +128,7 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 ## Sprint Plan (Phase 1)
 
 1. Foundation: WireNetwork hash-table, Detection, ServerCommands, EventHandlers — **DONE (tested in-game)**
-2. Placement: ISBuildingObject, context menus, timed actions — **DONE (needs in-game test)**
+2. Placement: ISBuildingObject, context menus, timed actions — **PASSED (tested in-game)**
 3. Sound + Trigger: handlers, loot distribution, item/recipe scripts
 4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
 
