@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""pz-tilesheet: Generate Project Zomboid .pack and .tiles.txt files from PNGs.
+"""pz-tilesheet: Generate Project Zomboid .pack and .tiles files from PNGs.
 
 Usage:
     python pz_tilesheet.py --name NAME --id ID --sprites *.png --out ./output/
 
 Creates:
     output/texturepacks/NAME.pack   (V2 binary atlas)
-    output/NAME.tiles.txt           (tile definitions)
+    output/NAME.tiles               (binary tile definitions)
+    output/NAME.tiles.txt           (human-readable tile definitions)
 """
 
 import argparse
@@ -150,11 +151,24 @@ def write_pack(out_dir, name, atlas, entries, sprite_w, sprite_h):
     return pack_path
 
 
-def write_tiles(out_dir, name, tileset_id, entries, cols, rows, tile_props=None):
-    """Write a .tiles.txt file."""
+def get_tile_props(tile_props, sprite_name):
+    """Get properties for a sprite as a list of (key, value) tuples."""
+    if not tile_props or sprite_name not in tile_props:
+        return []
+    props = []
+    for key, value in tile_props[sprite_name].items():
+        if isinstance(value, bool) and value:
+            props.append((key, ""))
+        elif not isinstance(value, bool):
+            props.append((key, str(value)))
+    return props
+
+
+def write_tiles_txt(out_dir, name, tileset_id, entries, cols, rows, tile_props=None):
+    """Write a human-readable .tiles.txt file."""
     tiles_path = os.path.join(out_dir, f"{name}.tiles.txt")
 
-    lines = [f"version = 1", "", "tileset", "{"]
+    lines = ["version = 1", "tileset", "{"]
     lines.append(f"    file = {name}")
     lines.append(f"    size = {cols},{rows}")
     lines.append(f"    id = {tileset_id}")
@@ -167,13 +181,11 @@ def write_tiles(out_dir, name, tileset_id, entries, cols, rows, tile_props=None)
         lines.append("    {")
         lines.append(f"        xy = {entry['col']},{entry['row']}")
 
-        # Add custom properties if provided
-        if tile_props and sprite_name in tile_props:
-            for key, value in tile_props[sprite_name].items():
-                if isinstance(value, bool) and value:
-                    lines.append(f"        {key} =")
-                elif not isinstance(value, bool):
-                    lines.append(f"        {key} = {value}")
+        for key, value in get_tile_props(tile_props, sprite_name):
+            if value:
+                lines.append(f"        {key} = {value}")
+            else:
+                lines.append(f"        {key} =")
 
         lines.append("    }")
 
@@ -182,6 +194,46 @@ def write_tiles(out_dir, name, tileset_id, entries, cols, rows, tile_props=None)
 
     with open(tiles_path, "w", newline="\n") as f:
         f.write("\n".join(lines))
+
+    return tiles_path
+
+
+def write_tiles_bin(out_dir, name, tileset_id, entries, cols, rows, tile_props=None):
+    """Write a compiled binary .tiles file (tdef format).
+
+    Binary format (verified against vanilla + workshop mods):
+      "tdef" magic | version u32 | num_tilesets u32
+      Per tileset:
+        name\\n | name.png\\n | cols u32 | rows u32 | id u32 | total_tiles u32
+        Per tile: num_props u32 | (key\\n value\\n) * num_props
+    """
+    tiles_path = os.path.join(out_dir, f"{name}.tiles")
+    total_tiles = cols * rows
+
+    with open(tiles_path, "wb") as f:
+        # Header
+        f.write(b"tdef")
+        write_u32(f, 1)  # version
+        write_u32(f, 1)  # num_tilesets
+
+        # Tileset header
+        f.write(f"{name}\n".encode("utf-8"))
+        f.write(f"{name}.png\n".encode("utf-8"))
+        write_u32(f, cols)
+        write_u32(f, rows)
+        write_u32(f, tileset_id)
+        write_u32(f, total_tiles)
+
+        # Tiles — write all grid cells (including empty padding cells)
+        entry_by_index = {e["index"]: e for e in entries}
+        for i in range(total_tiles):
+            entry = entry_by_index.get(i)
+            sprite_name = f"{name}_{i}" if entry else None
+            props = get_tile_props(tile_props, sprite_name) if sprite_name else []
+            write_u32(f, len(props))
+            for key, value in props:
+                f.write(f"{key}\n".encode("utf-8"))
+                f.write(f"{value}\n".encode("utf-8"))
 
     return tiles_path
 
@@ -248,12 +300,18 @@ def main():
     # Write outputs
     os.makedirs(args.out, exist_ok=True)
     pack_path = write_pack(args.out, args.name, atlas, entries, sprite_w, sprite_h)
-    tiles_path = write_tiles(args.out, args.name, args.id, entries, args.cols, rows, tile_props)
+    tiles_bin_path = write_tiles_bin(
+        args.out, args.name, args.id, entries, args.cols, rows, tile_props
+    )
+    tiles_txt_path = write_tiles_txt(
+        args.out, args.name, args.id, entries, args.cols, rows, tile_props
+    )
 
     # Summary
-    print(f"Pack:  {pack_path}")
-    print(f"Tiles: {tiles_path}")
-    print(f"Sprites: {len(entries)}")
+    print(f"Pack:      {pack_path}")
+    print(f"Tiles:     {tiles_bin_path}")
+    print(f"Tiles.txt: {tiles_txt_path}")
+    print(f"Sprites:   {len(entries)}")
     print()
     print("Sprite mapping:")
     for entry in entries:

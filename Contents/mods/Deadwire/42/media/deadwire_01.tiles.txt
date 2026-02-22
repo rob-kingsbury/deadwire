@@ -1,5 +1,4 @@
 version = 1
-
 tileset
 {
     file = deadwire_01
