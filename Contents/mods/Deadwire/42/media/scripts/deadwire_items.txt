@@ -26,4 +26,13 @@ module Base
         Icon = Deadwire_BellTripLineKit,
         Tags = deadwire:kit,
     }
+
+    item Deadwire_TanglefootKit
+    {
+        Type = Normal,
+        DisplayCategory = Deadwire,
+        Weight = 1.0,
+        Icon = Deadwire_TanglefootKit,
+        Tags = deadwire:kit,
+    }
 }

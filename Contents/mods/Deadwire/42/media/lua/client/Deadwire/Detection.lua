@@ -61,13 +61,16 @@ local function detectEntity(entity, isZombie)
         if username and wire.ownerId == username then return end
     end
 
-    -- De-duplicate: prevent same entity from re-triggering same tile.
-    -- Flag persists for entity lifetime. Single-use wires break on trigger,
-    -- reusable wires have cooldown. See GitHub issue for clearing strategy.
+    -- De-duplicate: prevent same entity from firing multiple triggers
+    -- within the same tick cycle (MP latency means cooldown may not be
+    -- set on client yet). Uses timestamp with 1-second expiry window.
     local key = DeadwireNetwork.tileKey(x, y, z)
     local data = entity:getModData()
-    if data["dw_t_" .. key] then return end
-    data["dw_t_" .. key] = true
+    local now = getGameTime():getWorldAgeHours()
+    local lastTrigger = data["dw_t_" .. key]
+    local DEDUP_SECONDS = 1.0 / 3600  -- 1 second in game-hours
+    if lastTrigger and (now - lastTrigger) < DEDUP_SECONDS then return end
+    data["dw_t_" .. key] = now
 
     local label = isZombie and "Zombie" or "Player"
     DeadwireConfig.debugLog(label .. " triggered wire at " .. key .. " type=" .. wire.wireType)

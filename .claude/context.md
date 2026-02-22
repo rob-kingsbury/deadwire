@@ -4,7 +4,7 @@
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
 last_session: 10
-continue_with: "Build Python .pack/.tiles packer tool (Issue #11), then test Sprint 3 with custom sprites"
+continue_with: "In-game test Sprint 3 (custom sprites, sounds, triggers, kits), then Sprint 4 (camo + config)"
 
 tech:
   stack: pz-lua-mod
@@ -120,7 +120,7 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 
 | Phase | Content | Status |
 |---|---|---|
-| Phase 1 (MVP) | Tier 0 + Tier 1 + Camouflage + SandboxVars | Sprint 1-2 PASSED, Sprint 3 in progress |
+| Phase 1 (MVP) | Tier 0 + Tier 1 + Camouflage + SandboxVars | Sprint 1-2 PASSED, Sprint 3 code complete + sprites |
 | Phase 2 (Pull-Alarms) | Tier 2: mechanical pull-cord alarm system | Not Started |
 | Phase 3 (Electric) | Tier 3: electrified perimeter fencing + power | Not Started |
 | Phase 4 (Advanced) | Tier 4: modified charger, detonation, electrified barbed | Not Started |
@@ -129,10 +129,21 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 
 1. Foundation: WireNetwork hash-table, Detection, ServerCommands, EventHandlers — **DONE (tested in-game)**
 2. Placement: ISBuildingObject, context menus, timed actions — **PASSED (tested in-game)**
-3. Sound + Trigger: handlers, loot distribution, item/recipe scripts — **CODE COMPLETE, needs sprite tool + testing**
+3. Sound + Trigger: handlers, loot distribution, item/recipe scripts — **CODE COMPLETE + sprites generated, needs in-game test**
 4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
 
 ## Recent Changes
+
+### Session 10 (2026-02-22): pz-tilesheet tool, custom sprites, bug fixes
+- Built pz-tilesheet Python CLI tool (V2 .pack + tdef .tiles + .tiles.txt from PNGs)
+- Published as standalone repo: github.com/rob-kingsbury/pz-tilesheet
+- Generated deadwire_01 tilesheet (8 sprites, 512x128 atlas, tileset ID 200)
+- Config.lua: populated Sprites table with tilesheet indices
+- mod.info: added pack=deadwire_01, tiledef=deadwire_01 200, bumped to v0.1.1
+- Fixed #3: dedup flags now use timestamp with 1-second expiry (was permanent boolean)
+- Fixed #10: added TanglefootKit item, recipe (3x TreeBranch + Twine + 2x Nails), icon, translations
+- Closed #7 (superseded), #9 (superseded by pz-tilesheet), #11 (completed)
+- Created v0.1.1 GitHub release + tag
 
 ### Session 9 (2026-02-22): Sprint 3 code complete + bug fixes
 - Sprint 3 implementation: TriggerHandlers.lua, sound scripts, item/recipe scripts, translation files, loot distribution, ClientCommands wireTriggered wrapper, ServerCommands WireTriggered handler

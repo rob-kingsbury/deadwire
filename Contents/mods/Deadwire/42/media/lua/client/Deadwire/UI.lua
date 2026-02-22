@@ -22,7 +22,7 @@ local wireDisplayNames = {
 -- Check if player has the required kit item for a wire type
 local function hasKitItem(character, wireType)
     local kitItem = DeadwireConfig.KitItems[wireType]
-    if not kitItem then return true end -- no kit required (tanglefoot)
+    if not kitItem then return true end -- no kit required for this type
     return character:getInventory():getFirstTypeRecurse(kitItem) ~= nil
 end
 

@@ -56,4 +56,23 @@ module Base
             item 1 Base.Deadwire_BellTripLineKit,
         }
     }
+
+    craftRecipe Deadwire_CraftTanglefoot
+    {
+        time = 150,
+        tags = InHandCraft,
+        category = Deadwire,
+        SkillRequired = Trapping:1,
+        xpAward = Trapping:10,
+        inputs
+        {
+            item 3 [Base.TreeBranch],
+            item 1 [Base.FishingLine;Base.Twine],
+            item 2 [Base.Nails],
+        }
+        outputs
+        {
+            item 1 Base.Deadwire_TanglefootKit,
+        }
+    }
 }

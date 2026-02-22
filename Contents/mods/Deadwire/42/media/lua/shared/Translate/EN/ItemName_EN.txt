@@ -2,4 +2,5 @@ ItemName_EN = {
     ItemName_Base.Deadwire_TinCanTripLineKit = "Tin Can Trip Line Kit",
     ItemName_Base.Deadwire_ReinforcedTripLineKit = "Reinforced Trip Line Kit",
     ItemName_Base.Deadwire_BellTripLineKit = "Bell Trip Line Kit",
+    ItemName_Base.Deadwire_TanglefootKit = "Tanglefoot Kit",
 }

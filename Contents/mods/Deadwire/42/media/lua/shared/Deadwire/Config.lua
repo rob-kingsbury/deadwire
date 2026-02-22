@@ -91,6 +91,7 @@ DeadwireConfig.KitItems = {
     tin_can_tripline    = "Base.Deadwire_TinCanTripLineKit",
     reinforced_tripline = "Base.Deadwire_ReinforcedTripLineKit",
     bell_tripline       = "Base.Deadwire_BellTripLineKit",
+    tanglefoot          = "Base.Deadwire_TanglefootKit",
 }
 
 -----------------------------------------------------------
