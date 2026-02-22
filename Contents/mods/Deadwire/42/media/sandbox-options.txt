@@ -1,13 +1,5 @@
 VERSION = 1,
 
--- =========================================================
--- Deadwire — Basic Server Settings
--- =========================================================
--- These are the most commonly adjusted options.
--- For full control (55+ options), see docs/sandbox-options-advanced.txt
--- and follow the instructions in README.md.
--- =========================================================
-
 option Deadwire.EnableMod
 {
     type = boolean, default = true,

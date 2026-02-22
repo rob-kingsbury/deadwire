@@ -4,7 +4,7 @@
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
 last_session: 6
-continue_with: "Test Sprint 1 in-game (Issue #5), then Sprint 2: Placement"
+continue_with: "Sprint 2: Placement system (ISBuildingObject, context menus, timed actions)"
 
 tech:
   stack: pz-lua-mod
@@ -97,6 +97,8 @@ Communication: Client `sendClientCommand` → Server validates + executes → `s
 | Bare tag names | 42.13 requires namespaces | `deadwire:tagname` |
 | Missing `42/mod.info` | Mod won't appear in PZ mod list | Duplicate mod.info in both root and `42/` |
 | Missing `common/` dir | Non-standard, may break detection | Always include `common/` even if empty |
+| `--` comments in sandbox-options.txt | PZ parser may fail silently | No comments in sandbox-options.txt |
+| Translation file not named `Sandbox_EN.txt` | Labels show raw keys | Must be exactly `Sandbox_EN.txt` |
 
 ## Camouflage System (Ships Phase 1)
 
@@ -118,26 +120,35 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 
 | Phase | Content | Status |
 |---|---|---|
-| Phase 1 (MVP) | Tier 0 + Tier 1 + Camouflage + SandboxVars | Sprint 1 Done, needs in-game test |
+| Phase 1 (MVP) | Tier 0 + Tier 1 + Camouflage + SandboxVars | Sprint 1 PASSED, Sprint 2 next |
 | Phase 2 (Pull-Alarms) | Tier 2: mechanical pull-cord alarm system | Not Started |
 | Phase 3 (Electric) | Tier 3: electrified perimeter fencing + power | Not Started |
 | Phase 4 (Advanced) | Tier 4: modified charger, detonation, electrified barbed | Not Started |
 
 ## Sprint Plan (Phase 1)
 
-1. Foundation: WireNetwork hash-table, Detection, ServerCommands, EventHandlers — **DONE**
+1. Foundation: WireNetwork hash-table, Detection, ServerCommands, EventHandlers — **DONE (tested in-game)**
 2. Placement: ISBuildingObject, context menus, timed actions
 3. Sound + Trigger: handlers, loot distribution, item/recipe scripts
 4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
 
 ## Recent Changes
 
-### Session 6 (2026-02-21): Fix mod structure for PZ detection
+### Session 6 (2026-02-21): Fix mod structure, in-game test, Sprint 1 PASSED
 - CRITICAL FIX: Mod was invisible in PZ mod list — missing `42/mod.info`
 - Added `42/mod.info` (required duplicate of root mod.info)
 - Added `common/` directory (standard B42 mod structure)
 - Fixed `poster=poster.png` → `poster=42/poster.png` in root mod.info
 - Documented B42 mod structure requirement in context.md
+- Removed `--` comments from sandbox-options.txt (PZ parser may choke on them)
+- Renamed `Sandbox_Deadwire_EN.txt` → `Sandbox_EN.txt` (PZ naming convention)
+- **IN-GAME TEST PASSED**: All 5 Sprint 1 tests pass
+  - Mod loads (3/3 init messages)
+  - Debug wire registers at player tile
+  - Zombie detection fires on wire tile
+  - Player detection fires on wire tile
+  - De-duplication prevents re-trigger on same entity
+- Known minor: sandbox option labels show translation keys (fix confirmed, needs new save to verify)
 
 ### Session 5 (2026-02-20): Sprite Checklist + Handoff
 - Created `docs/SPRITES.md`: comprehensive sprite checklist for all 4 phases (40 sprites total)
