@@ -3,8 +3,8 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 7
-continue_with: "Sprint 2: In-game test of placement system"
+last_session: 8
+continue_with: "Sprint 2: In-game test of placement system (restart PZ)"
 
 tech:
   stack: pz-lua-mod
@@ -133,6 +133,14 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
 
 ## Recent Changes
+
+### Session 8 (2026-02-21): Fix BuildActions load order + audit
+- CRITICAL FIX: Moved BuildActions.lua from client/ to server/ (ISBuildingObject is in server/, loads after client/)
+- Simplified create() — removed fragile DeadwireWireManager branch, now always calls WireManager directly (file is in server/)
+- Fixed UI.lua: removed require for BuildActions (ISDeadwireTripLine is a global available at callback time)
+- Fixed UI.lua: changed `context:getNew(context)` to `ISContextMenu:getNew(context)` (vanilla pattern)
+- Added `require "Deadwire/WireManager"` to BuildActions.lua (server-side dependency)
+- Key learning: PZ load order is shared → client → server. ISBuildingObject:derive() files MUST be in server/
 
 ### Session 7 (2026-02-21): Sprint 2 Placement System implemented
 - Created WireManager.lua: server-side wire lifecycle, IsoThumpable creation/destruction, GlobalModData persistence, save/load, chunk reconnect

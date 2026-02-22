@@ -38,7 +38,7 @@ function DeadwireWireManager.createWire(sq, wireType, ownerId, networkId)
     end
 
     -- Create IsoThumpable in the world
-    local obj = IsoThumpable.new(getCell(), sq, PLACEHOLDER_SPRITE, false, nil)
+    local obj = IsoThumpable.new(getWorld():getCell(), sq, PLACEHOLDER_SPRITE, false, nil)
     obj:setName("DeadwireTripLine")
     obj:setMaxHealth(defaults.health or 50)
     obj:setHealth(defaults.health or 50)
@@ -84,7 +84,7 @@ function DeadwireWireManager.destroyWire(x, y, z)
         end
     else
         -- No cached ref — find it on the square
-        local sq = getCell():getGridSquare(x, y, z)
+        local sq = getWorld():getCell():getGridSquare(x, y, z)
         if sq then
             local objects = sq:getSpecialObjects()
             for i = 0, objects:size() - 1 do
@@ -188,7 +188,7 @@ end
 -- Event Hooks
 -----------------------------------------------------------
 
-local function onGameStart()
+local function onInitGlobalModData(isNewGame)
     DeadwireWireManager.loadAll()
 end
 
@@ -196,6 +196,6 @@ local function onLoadGridsquare(sq)
     DeadwireWireManager.reconnectSquare(sq)
 end
 
-Events.OnGameStart.Add(onGameStart)
+Events.OnInitGlobalModData.Add(onInitGlobalModData)
 Events.LoadGridsquare.Add(onLoadGridsquare)
 DeadwireConfig.log("WireManager initialized (server)")

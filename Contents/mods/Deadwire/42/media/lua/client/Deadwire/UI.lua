@@ -6,6 +6,7 @@
 
 require "Deadwire/Config"
 require "Deadwire/WireNetwork"
+-- ISDeadwireTripLine is a global from server/BuildActions.lua (loaded before callbacks fire)
 
 DeadwireUI = DeadwireUI or {}
 
@@ -15,7 +16,7 @@ DeadwireUI = DeadwireUI or {}
 
 local function onPlaceWire(worldObjects, character, wireType)
     local tripLine = ISDeadwireTripLine:new(character, wireType)
-    tripLine:begin()
+    getCell():setDrag(tripLine, character:getPlayerNum())
 end
 
 -----------------------------------------------------------
@@ -67,7 +68,7 @@ local function onFillWorldObjectContextMenu(playerNum, context, worldObjects, te
         end
     else
         -- No wire: show placement submenu
-        local placeMenu = context:getNew(context)
+        local placeMenu = ISContextMenu:getNew(context)
         context:addSubMenu(
             context:addOption("Place Deadwire..."),
             placeMenu

@@ -44,7 +44,7 @@ All 7 steps implemented. 4 new files + 3 updated files. Fixes #1 and #4 (persist
 
 **New files:**
 - `server/Deadwire/WireManager.lua` — wire lifecycle, IsoThumpable create/destroy, GlobalModData persistence, save/load on OnGameStart, chunk reconnect on LoadGridsquare
-- `client/Deadwire/BuildActions.lua` — ISBuildingObject:derive("ISDeadwireTripLine"), create() calls WireManager on server
+- `server/Deadwire/BuildActions.lua` — ISBuildingObject:derive("ISDeadwireTripLine"), create() calls WireManager directly
 - `client/Deadwire/UI.lua` — right-click context menu: "Place Deadwire..." submenu (4 wire types) + "Remove Wire" (owner/admin)
 - `client/Deadwire/ClientCommands.lua` — sendClientCommand wrappers
 
@@ -66,6 +66,7 @@ All 7 steps implemented. 4 new files + 3 updated files. Fixes #1 and #4 (persist
 | `setAlphaAndTarget()` for camo | Global alpha operates per-client in network MP. | 2026-02-20 |
 | Idempotent registerTile | MP host receives its own broadcast — prevents duplicate entries. | 2026-02-20 |
 | `create()` runs server-side | PZ's `createBuildAction` sends build action to server in MP. No need for sendClientCommand from create(). | 2026-02-21 |
+| BuildActions.lua in **server/** | ISBuildingObject is in server/. PZ load order: shared→client→server. derive() at file-load time requires server/. | 2026-02-21 |
 | GlobalModData for persistence | `ModData.getOrCreate()` persists in save file. Rebuild WireNetwork on game load. | 2026-02-21 |
 | Vanilla placeholder sprite | No custom sprites yet. Use barbed wire sprite until art is done. | 2026-02-21 |
 | Skip material checks Sprint 2 | No item scripts exist. Free placement for testing mechanics. | 2026-02-21 |
@@ -73,6 +74,13 @@ All 7 steps implemented. 4 new files + 3 updated files. Fixes #1 and #4 (persist
 ---
 
 ## Session History
+
+### Session 8 (2026-02-21): Fix BuildActions load order + audit
+
+- CRITICAL: Moved BuildActions.lua from client/ to server/ (ISBuildingObject not available at client load time)
+- Simplified create() — calls WireManager directly, no fragile branching
+- Fixed UI.lua submenu: ISContextMenu:getNew(context), removed require for BuildActions
+- Confirmed sandbox options work in-game, closed Issue #6
 
 ### Session 7 (2026-02-21): Sprint 2 Placement — code complete
 
