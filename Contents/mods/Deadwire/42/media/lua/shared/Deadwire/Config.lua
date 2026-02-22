@@ -73,16 +73,15 @@ DeadwireConfig.WireDefaults = {
 }
 
 -----------------------------------------------------------
--- Sprites (per wire type)
--- Custom world sprites require .pack + .tiles built with TileZed.
--- Until a tilesheet pack is created, Sprites stays empty and
--- all wires use FALLBACK_SPRITE (vanilla barbed wire).
--- When ready, populate with tilesheet_index names, e.g.:
---   tin_can_tripline = { north = "deadwire_01_0", east = "deadwire_01_1" },
+-- Sprites (per wire type, from deadwire_01 tilesheet)
 -----------------------------------------------------------
-DeadwireConfig.Sprites = {}
+DeadwireConfig.Sprites = {
+    bell_tripline       = { north = "deadwire_01_1", east = "deadwire_01_0" },
+    reinforced_tripline = { north = "deadwire_01_3", east = "deadwire_01_2" },
+    tanglefoot          = { north = "deadwire_01_5", east = "deadwire_01_4" },
+    tin_can_tripline    = { north = "deadwire_01_7", east = "deadwire_01_6" },
+}
 
--- Fallback sprite (vanilla barbed wire) used until custom tilesheet is ready
 DeadwireConfig.FALLBACK_SPRITE = "construction_01_24"
 
 -----------------------------------------------------------

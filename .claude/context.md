@@ -3,7 +3,7 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 9
+last_session: 10
 continue_with: "Build Python .pack/.tiles packer tool (Issue #11), then test Sprint 3 with custom sprites"
 
 tech:
