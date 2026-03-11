@@ -123,7 +123,7 @@ handlers["RemoveWire"] = function(player, args)
 
     -- Only owner or admin can remove
     local username = player:getUsername() or "SP"
-    if wire.ownerId ~= username and not player:isAccessLevel("admin") then
+    if wire.ownerId ~= username and not player:getRole():hasCapability(Capability.CanBuildAnywhere) then
         DeadwireConfig.log("RemoveWire: " .. username .. " not authorized")
         return
     end
@@ -246,7 +246,7 @@ end
 -----------------------------------------------------------
 
 handlers["DebugPlaceWire"] = function(player, args)
-    if not DeadwireConfig.DEBUG and not player:isAccessLevel("admin") then
+    if not DeadwireConfig.DEBUG and not player:getRole():hasCapability(Capability.CanBuildAnywhere) then
         return
     end
 
@@ -283,7 +283,7 @@ end
 -----------------------------------------------------------
 
 handlers["DebugListWires"] = function(player, args)
-    if not DeadwireConfig.DEBUG and not player:isAccessLevel("admin") then
+    if not DeadwireConfig.DEBUG and not player:getRole():hasCapability(Capability.CanBuildAnywhere) then
         return
     end
 

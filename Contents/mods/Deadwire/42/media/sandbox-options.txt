@@ -21,11 +21,32 @@ option Deadwire.WireMaxPerPlayer
     translation = Deadwire_WireMaxPerPlayer,
 }
 
+option Deadwire.WireAffectsZombies
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_WireAffectsZombies,
+}
+
 option Deadwire.WireAffectsPlayers
 {
     type = boolean, default = true,
     page = Deadwire,
     translation = Deadwire_WireAffectsPlayers,
+}
+
+option Deadwire.TanglefootTripChance
+{
+    type = integer, default = 40, min = 0, max = 100,
+    page = Deadwire,
+    translation = Deadwire_TanglefootTripChance,
+}
+
+option Deadwire.TanglefootAffectsCrawlers
+{
+    type = boolean, default = false,
+    page = Deadwire,
+    translation = Deadwire_TanglefootAffectsCrawlers,
 }
 
 option Deadwire.SoundMultiplier
@@ -96,4 +117,11 @@ option Deadwire.LogWirePlacements
     type = boolean, default = true,
     page = Deadwire,
     translation = Deadwire_LogWirePlacements,
+}
+
+option Deadwire.LogWireTriggers
+{
+    type = boolean, default = false,
+    page = Deadwire,
+    translation = Deadwire_LogWireTriggers,
 }

@@ -7,7 +7,7 @@ DeadwireConfig = DeadwireConfig or {}
 DeadwireConfig.MODULE = "Deadwire"
 
 -- Debug mode (set true for development, false for release)
-DeadwireConfig.DEBUG = true
+DeadwireConfig.DEBUG = false
 
 -----------------------------------------------------------
 -- Wire Types

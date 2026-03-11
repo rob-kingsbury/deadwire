@@ -66,9 +66,9 @@ local function detectEntity(entity, isZombie)
     -- set on client yet). Uses timestamp with 1-second expiry window.
     local key = DeadwireNetwork.tileKey(x, y, z)
     local data = entity:getModData()
-    local now = getGameTime():getWorldAgeHours()
+    local now = os.time()  -- real-time seconds (not game-hours)
     local lastTrigger = data["dw_t_" .. key]
-    local DEDUP_SECONDS = 1.0 / 3600  -- 1 second in game-hours
+    local DEDUP_SECONDS = 1  -- 1 real second
     if lastTrigger and (now - lastTrigger) < DEDUP_SECONDS then return end
     data["dw_t_" .. key] = now
 

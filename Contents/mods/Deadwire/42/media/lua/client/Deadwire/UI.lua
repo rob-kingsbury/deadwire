@@ -19,13 +19,6 @@ local wireDisplayNames = {
     tanglefoot          = "Tanglefoot",
 }
 
--- Check if player has the required kit item for a wire type
-local function hasKitItem(character, wireType)
-    local kitItem = DeadwireConfig.KitItems[wireType]
-    if not kitItem then return true end -- no kit required for this type
-    return character:getInventory():getFirstTypeRecurse(kitItem) ~= nil
-end
-
 -- Count how many kit items the player has
 local function countKitItems(character, wireType)
     local kitItem = DeadwireConfig.KitItems[wireType]
@@ -84,7 +77,7 @@ local function onFillWorldObjectContextMenu(playerNum, context, worldObjects, te
         -- Wire exists on this tile: show removal option
         local username = character:getUsername() or "SP"
         local isOwner = existingWire.ownerId == username
-        local isAdmin = character:isAccessLevel("admin")
+        local isAdmin = isAdmin()
 
         if isOwner or isAdmin then
             local friendlyName = wireDisplayNames[existingWire.wireType] or existingWire.wireType

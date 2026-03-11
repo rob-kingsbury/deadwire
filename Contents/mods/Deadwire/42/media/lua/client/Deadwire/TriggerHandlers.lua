@@ -43,10 +43,12 @@ local function tinCanZombieHandler(zombie, sq, wire)
     local radius = getSoundRadius(wire.wireType)
     local volume = getSoundVolume(wire.wireType)
 
-    -- Audible sound for this player (immediate, works in SP)
-    getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.TIN_CAN_RATTLE, sq, 0, radius, 1.0, false)
+    -- In SP play locally (no server broadcast). In MP the server broadcasts to all clients.
+    if not isClient() then
+        getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.TIN_CAN_RATTLE, sq, 0, radius, 1.0, false)
+    end
 
-    -- Zombie-AI world sound (attracts nearby zombies)
+    -- Zombie-AI world sound (attracts nearby zombies, always local)
     getWorldSoundManager():addSound(nil, x, y, z, radius, volume, false)
 
     -- Server handles break + broadcast
@@ -58,7 +60,9 @@ local function tinCanPlayerHandler(player, sq, wire)
     local radius = getSoundRadius(wire.wireType)
     local volume = getSoundVolume(wire.wireType)
 
-    getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.TIN_CAN_RATTLE, sq, 0, radius, 1.0, false)
+    if not isClient() then
+        getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.TIN_CAN_RATTLE, sq, 0, radius, 1.0, false)
+    end
     getWorldSoundManager():addSound(nil, x, y, z, radius, volume, false)
 
     notifyServer(sq, wire.wireType)
@@ -74,7 +78,9 @@ local function reinforcedZombieHandler(zombie, sq, wire)
     local radius = getSoundRadius(wire.wireType)
     local volume = getSoundVolume(wire.wireType)
 
-    getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.WIRE_RATTLE, sq, 0, radius, 1.0, false)
+    if not isClient() then
+        getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.WIRE_RATTLE, sq, 0, radius, 1.0, false)
+    end
     getWorldSoundManager():addSound(nil, x, y, z, radius, volume, false)
 
     notifyServer(sq, wire.wireType)
@@ -85,7 +91,9 @@ local function reinforcedPlayerHandler(player, sq, wire)
     local radius = getSoundRadius(wire.wireType)
     local volume = getSoundVolume(wire.wireType)
 
-    getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.WIRE_RATTLE, sq, 0, radius, 1.0, false)
+    if not isClient() then
+        getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.WIRE_RATTLE, sq, 0, radius, 1.0, false)
+    end
     getWorldSoundManager():addSound(nil, x, y, z, radius, volume, false)
 
     notifyServer(sq, wire.wireType)
@@ -101,7 +109,9 @@ local function bellZombieHandler(zombie, sq, wire)
     local radius = getSoundRadius(wire.wireType)
     local volume = getSoundVolume(wire.wireType)
 
-    getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.BELL_RING, sq, 0, radius, 1.0, false)
+    if not isClient() then
+        getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.BELL_RING, sq, 0, radius, 1.0, false)
+    end
     getWorldSoundManager():addSound(nil, x, y, z, radius, volume, false)
 
     notifyServer(sq, wire.wireType)
@@ -112,7 +122,9 @@ local function bellPlayerHandler(player, sq, wire)
     local radius = getSoundRadius(wire.wireType)
     local volume = getSoundVolume(wire.wireType)
 
-    getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.BELL_RING, sq, 0, radius, 1.0, false)
+    if not isClient() then
+        getSoundManager():PlayWorldSound(DeadwireConfig.Sounds.BELL_RING, sq, 0, radius, 1.0, false)
+    end
     getWorldSoundManager():addSound(nil, x, y, z, radius, volume, false)
 
     notifyServer(sq, wire.wireType)
@@ -145,8 +157,10 @@ end
 local function tanglefootPlayerHandler(player, sq, wire)
     -- Players stumble (brief movement penalty) if enabled
     if DeadwireConfig.getSandbox("PlayerTripStumble", true) then
-        player:setSlowFactor(0.5)
-        player:setSlowTimer(2.0)
+        player:setBumpType("stagger")
+        player:setVariable("BumpDone", false)
+        player:setVariable("BumpFall", true)
+        player:setVariable("BumpFallType", "pushedFront")
         DeadwireConfig.debugLog("Tanglefoot stumbled player at " .. sq:getX() .. "," .. sq:getY())
     end
 

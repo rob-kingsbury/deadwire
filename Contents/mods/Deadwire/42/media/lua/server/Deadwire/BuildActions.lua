@@ -20,14 +20,12 @@ function ISDeadwireTripLine:create(x, y, z, north, sprite)
     local username = self.character:getUsername() or "SP"
     local networkId = DeadwireNetwork.generateNetworkId()
 
-    -- Consume kit item from inventory (if this wire type requires one)
+    -- Verify kit item exists before attempting placement (consume only after success)
     local kitItem = DeadwireConfig.KitItems[wireType]
+    local kitItemObj = nil
     if kitItem then
-        local inv = self.character:getInventory()
-        local item = inv:getFirstTypeRecurse(kitItem)
-        if item then
-            inv:Remove(item)
-        else
+        kitItemObj = self.character:getInventory():getFirstTypeRecurse(kitItem)
+        if not kitItemObj then
             DeadwireConfig.debugLog("BuildActions: missing kit " .. kitItem)
             return
         end
@@ -35,6 +33,11 @@ function ISDeadwireTripLine:create(x, y, z, north, sprite)
 
     local obj = DeadwireWireManager.createWire(sq, wireType, username, networkId, north)
     if not obj then return end
+
+    -- Consume kit only after wire placement confirmed
+    if kitItemObj then
+        self.character:getInventory():Remove(kitItemObj)
+    end
 
     sendServerCommand(DeadwireConfig.MODULE, "WirePlaced", {
         x = x,
