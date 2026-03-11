@@ -64,7 +64,12 @@ function DeadwireWireManager.createWire(sq, wireType, ownerId, networkId, north)
 
     sq:AddSpecialObject(obj)
     obj:transmitCompleteItemToClients()
-    sq:RecalcAllWithNeighbours(true)
+    -- NOTE: RecalcAllWithNeighbours intentionally NOT called here.
+    -- Trip wires must be transparent to zombie pathfinding so zombies walk
+    -- through them (triggering the alarm). Calling RecalcAllWithNeighbours
+    -- would also update adjacent tiles (e.g. doors), causing door-blocking
+    -- even when canPassThrough=true. Recalc only happens on wire removal.
+    -- Fixes #8: wire placed near door blocks passage.
 
     -- Register in WireNetwork for detection
     local entry = DeadwireNetwork.registerTile(x, y, z, networkId, wireType, ownerId)
@@ -86,15 +91,16 @@ function DeadwireWireManager.destroyWire(x, y, z)
     if not entry then return false end
 
     -- Remove IsoThumpable from world
+    local sq = nil
     local obj = entry.isoObject
     if obj then
-        local sq = obj:getSquare()
+        sq = obj:getSquare()
         if sq then
             sq:transmitRemoveItemFromSquare(obj)
         end
     else
         -- No cached ref — find it on the square
-        local sq = getWorld():getCell():getGridSquare(x, y, z)
+        sq = getWorld():getCell():getGridSquare(x, y, z)
         if sq then
             local objects = sq:getSpecialObjects()
             for i = 0, objects:size() - 1 do
@@ -105,6 +111,12 @@ function DeadwireWireManager.destroyWire(x, y, z)
                 end
             end
         end
+    end
+
+    -- Restore pathfinding after removal so the tile and adjacent tiles
+    -- (e.g. doors) recalculate correctly now that the wire is gone.
+    if sq then
+        sq:RecalcAllWithNeighbours(true)
     end
 
     -- Unregister from WireNetwork
@@ -206,6 +218,40 @@ local function onLoadGridsquare(sq)
     DeadwireWireManager.reconnectSquare(sq)
 end
 
+-----------------------------------------------------------
+-- Resync on player connect: send full wire list to the
+-- joining client so their local WireNetwork is populated.
+-- Fixes the critical bug: owner can't remove own wire after
+-- reconnecting because client WireNetwork was empty.
+--
+-- API NOTE: sendServerCommand(player, module, command, args)
+-- sends to a specific player only (not broadcast).
+-- VERIFY IN-GAME: targeted send API — may need adjustment.
+-----------------------------------------------------------
+
+local function onPlayerConnect(player)
+    local saved = ModData.getOrCreate(SAVE_KEY)
+    local wireList = {}
+    for key, wire in pairs(saved) do
+        if wire.x and wire.y and wire.z and wire.networkId and wire.wireType then
+            table.insert(wireList, {
+                x         = wire.x,
+                y         = wire.y,
+                z         = wire.z,
+                networkId = wire.networkId,
+                wireType  = wire.wireType,
+                ownerId   = wire.ownerId,
+            })
+        end
+    end
+    sendServerCommand(player, DeadwireConfig.MODULE, "WireNetworkSync", {
+        wires = wireList,
+    })
+    DeadwireConfig.log("WireNetworkSync: sent " .. #wireList
+        .. " wires to " .. (player:getUsername() or "?"))
+end
+
 Events.OnInitGlobalModData.Add(onInitGlobalModData)
 Events.LoadGridsquare.Add(onLoadGridsquare)
+Events.OnPlayerConnect.Add(onPlayerConnect)
 DeadwireConfig.log("WireManager initialized (server)")

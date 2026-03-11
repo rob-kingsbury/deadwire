@@ -99,12 +99,45 @@ end
 handlers["WireCamouflaged"] = function(args)
     if not hasPosition(args) then return end
 
+    -- When uncamouflaging: reset alpha to full opacity before removing from
+    -- camo index. Without this the wire stays invisible until next render cycle.
+    if not args.camouflaged then
+        local entry = DeadwireNetwork.getTile(args.x, args.y, args.z)
+        if entry and entry.isoObject then
+            entry.isoObject:setAlphaAndTarget(1.0)
+            entry.isoObject:setOutlineHighlight(false)
+        end
+    end
+
     DeadwireNetwork.setCamouflaged(
         args.x, args.y, args.z,
         args.camouflaged,
         args.durability
     )
     DeadwireConfig.debugLog("Camo updated at " .. args.x .. "," .. args.y .. "," .. args.z)
+end
+
+-----------------------------------------------------------
+-- WireNetworkSync: Bulk-populate local WireNetwork on connect/rejoin.
+-- Server sends all active wires when a player connects so the client's
+-- hash-table is populated without waiting for individual WirePlaced events.
+-----------------------------------------------------------
+
+handlers["WireNetworkSync"] = function(args)
+    if not args or not args.wires then return end
+    local count = 0
+    for _, wire in ipairs(args.wires) do
+        if wire.x and wire.y and wire.z and wire.networkId and wire.wireType then
+            DeadwireNetwork.registerTile(
+                wire.x, wire.y, wire.z,
+                wire.networkId,
+                wire.wireType,
+                wire.ownerId
+            )
+            count = count + 1
+        end
+    end
+    DeadwireConfig.log("WireNetworkSync: registered " .. count .. " wires")
 end
 
 -----------------------------------------------------------

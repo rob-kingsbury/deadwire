@@ -7,6 +7,20 @@ option Deadwire.EnableMod
     translation = Deadwire_EnableMod,
 }
 
+option Deadwire.EnableTier0
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_EnableTier0,
+}
+
+option Deadwire.EnableTier1
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_EnableTier1,
+}
+
 option Deadwire.EnableCamouflage
 {
     type = boolean, default = true,
@@ -124,4 +138,88 @@ option Deadwire.LogWireTriggers
     type = boolean, default = false,
     page = Deadwire,
     translation = Deadwire_LogWireTriggers,
+}
+
+option Deadwire.CamoMaxDurability
+{
+    type = integer, default = 100, min = 10, max = 200,
+    page = Deadwire,
+    translation = Deadwire_CamoMaxDurability,
+}
+
+option Deadwire.CamoTriggerDegrade
+{
+    type = integer, default = 15, min = 0, max = 50,
+    page = Deadwire,
+    translation = Deadwire_CamoTriggerDegrade,
+}
+
+option Deadwire.CamoRainDegradeRate
+{
+    type = integer, default = 5, min = 0, max = 50,
+    page = Deadwire,
+    translation = Deadwire_CamoRainDegradeRate,
+}
+
+option Deadwire.CamoStormMultiplier
+{
+    type = double, default = 2.0, min = 1.0, max = 5.0,
+    page = Deadwire,
+    translation = Deadwire_CamoStormMultiplier,
+}
+
+option Deadwire.CamoVisibleToOwner
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_CamoVisibleToOwner,
+}
+
+option Deadwire.AdminBypassCamo
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_AdminBypassCamo,
+}
+
+option Deadwire.CamoDetectLevelLow
+{
+    type = integer, default = 3, min = 1, max = 10,
+    page = Deadwire,
+    translation = Deadwire_CamoDetectLevelLow,
+}
+
+option Deadwire.CamoDetectLevelMid
+{
+    type = integer, default = 5, min = 1, max = 10,
+    page = Deadwire,
+    translation = Deadwire_CamoDetectLevelMid,
+}
+
+option Deadwire.CamoDetectLevelFull
+{
+    type = integer, default = 7, min = 1, max = 10,
+    page = Deadwire,
+    translation = Deadwire_CamoDetectLevelFull,
+}
+
+option Deadwire.CamoDetectRangeLow
+{
+    type = integer, default = 3, min = 1, max = 30,
+    page = Deadwire,
+    translation = Deadwire_CamoDetectRangeLow,
+}
+
+option Deadwire.CamoDetectRangeMid
+{
+    type = integer, default = 8, min = 1, max = 30,
+    page = Deadwire,
+    translation = Deadwire_CamoDetectRangeMid,
+}
+
+option Deadwire.CamoDetectRangeFull
+{
+    type = integer, default = 15, min = 1, max = 30,
+    page = Deadwire,
+    translation = Deadwire_CamoDetectRangeFull,
 }
