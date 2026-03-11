@@ -2,9 +2,9 @@
 
 ## Current Priority
 
-**In-game test Sprint 3 end-to-end, then begin Sprint 4 (Camo + Config)**
+**In-game test Sprint 3 end-to-end (new save required), then Sprint 4 (Camo + Config)**
 
-Sprint 3 is code complete with custom sprites generated. All blocking issues resolved. Needs a new save to test the full wire lifecycle: craft kit → place wire → zombie/player triggers → sound + effects → removal.
+Sprint 3 is code complete with custom sprites and a full audit pass. **Requires a new save** to pick up the updated sandbox options and translation files. Test all 4 wire types: craft kit → place wire → zombie/player triggers → sound + effects → removal.
 
 ---
 
@@ -17,11 +17,11 @@ Sprint 3 is code complete with custom sprites generated. All blocking issues res
 | Mod Scaffolding | Done | mod.info (root + 42/), common/, correct structure |
 | Sprint 1 (Foundation) | **PASSED** | All 5 in-game tests pass (Session 6) |
 | Sprint 2 (Placement) | **PASSED** | All 6 tests pass (Session 8) |
-| Sprint 3 (Sound+Trigger) | **Ready to test** | Code complete + custom sprites + all kits |
+| Sprint 3 (Sound+Trigger) | **Ready to test** | Code complete + audited + custom sprites + all kits |
+| 42.15 compat | **Done** | Translation files migrated to JSON (Session 11) |
+| Audit (Sprints 2+3) | **Done** | 8 bugs fixed (Session 11) |
 | Custom world sprites | **Done** | deadwire_01.pack + .tiles (8 sprites, tileset ID 200) |
 | pz-tilesheet tool | **Done** | `tools/pz-tilesheet/`, also published standalone |
-| Tanglefoot kit | **Done** | Item, recipe, icon, translations (Session 10) |
-| Dedup bug fix | **Done** | Timestamp-based 1s expiry (was permanent flag) |
 | Sprint 4 (Camo+Config) | Not Started | CamoVisibility, SandboxVars, ModOptions |
 
 ---
@@ -30,10 +30,8 @@ Sprint 3 is code complete with custom sprites generated. All blocking issues res
 
 | # | Title | Labels | Status |
 |---|-------|--------|--------|
-| 3 | Zombie/player modData de-dup flags never clear | design-review, phase-1 | **Fixed** (close after test) |
 | 8 | Wire placed near door blocks passage | bug, phase-1 | Open (needs in-game investigation) |
-
-Closed this session: #7 (superseded), #9 (superseded), #11 (completed)
+| 12 | Add loot distribution for metalfabrication rooms (42.15) | enhancement, phase-1 | Open (Sprint 4) |
 
 ---
 
@@ -57,39 +55,58 @@ Closed this session: #7 (superseded), #9 (superseded), #11 (completed)
 | Python packer over pz-pack | No MSVC build tools. Python 3.11 available. More maintainable. | 2026-02-22 |
 | Mono OGG requirement | PZ is3D audio silently fails on stereo. All sound files must be mono. | 2026-02-22 |
 | Binary .tiles required | PZ needs compiled tdef binary, not just .tiles.txt. Verified via workshop mods. | 2026-02-22 |
-| Timestamp dedup (1s window) | Permanent modData flag broke reusable wires. Short expiry handles MP latency. | 2026-02-22 |
+| Dedup via os.time() | Real-time seconds (1s window). Game-hours at 60x = ~1 frame window (was broken). | 2026-03-11 |
+| Admin check: isAdmin() / getRole() | Client: `isAdmin()` global. Server: `player:getRole():hasCapability(Capability.CanBuildAnywhere)`. `isAccessLevel` does not exist. | 2026-03-11 |
+| Sound: SP local, MP broadcast | TriggerHandlers plays locally only in SP (`not isClient()`). MP uses server broadcast via EventHandlers. Prevents double-play. | 2026-03-11 |
+| Player stagger: setBumpType | `setSlowFactor`/`setSlowTimer` don't exist in B42. Stagger via `setBumpType("stagger")` + `setVariable`. | 2026-03-11 |
+| Translation files now JSON | PZ 42.15 requires `.json` files. Keys: ItemName drops `ItemName_` prefix; Recipes drops `Recipe_` prefix; Sandbox keeps `Sandbox_` prefix. | 2026-03-11 |
+| transmitRemoveItemFromSquare valid server-side | Confirmed in ISBuildingObject.lua — not a client-only API. | 2026-03-11 |
+
+---
+
+## Deferred (Sprint 4 or later)
+
+| Item | Severity | Notes |
+|------|----------|-------|
+| WireNetwork resync on client rejoin | CRITICAL | Owner can't remove own wire after reconnect. Needs server-side broadcast of all active wires on player join. Design work required. |
+| BodyPartType.Foot_L enum name | MINOR | Unverified against B42. If wrong, tanglefoot damage silently no-ops. Verify in-game. |
+| tileKey float safety | MODERATE | `math.floor` coords on input to prevent float/int key mismatch. |
+| LootDistribution isServer() guard | MODERATE | Guard OnPreDistributionMerge with isServer() for MP correctness. |
+| Issue #12: metalfabrication loot | Enhancement | Add ReinforcedTripLineKit to new 42.15 metalfabrication rooms. |
 
 ---
 
 ## Session History
 
+### Session 11 (2026-03-11): 42.15 compat + full audit + bug fixes
+
+- Researched PZ 42.15 changes; key finding: translation files now JSON
+- Migrated all 3 translation files to JSON format (breaking change in 42.15)
+- Added validate_pack.py to version control; removed local skill stubs
+- Created Issue #12 (metalfabrication loot for 42.15 new rooms)
+- Ran 3 parallel audit agents across 6 unaudited files; found 9 criticals, 6 moderates, 5 minors
+- Verified confirmed vs false-positive findings against actual PZ game files
+- Fixed 8 bugs: admin check API, kit loss on placement failure, double sound MP,
+  non-existent slow APIs, dedup timestamp, 4 missing sandbox options, DEBUG flag, dead function
+
 ### Session 10 (2026-02-22): pz-tilesheet + sprites + bug fixes
 
 - Built pz-tilesheet Python CLI (V2 .pack + tdef .tiles + .tiles.txt)
-- Published standalone: github.com/rob-kingsbury/pz-tilesheet
 - Generated deadwire_01 tilesheet (8 sprites, 512x128, ID 200)
-- Validated .pack binary (108/108 checks pass) and .tiles binary against vanilla
-- Fixed #3: dedup flags now timestamp-based with 1s expiry
-- Fixed #10: TanglefootKit item + recipe + icon + translations
+- Fixed #3: dedup flags timestamp-based; Fixed #10: TanglefootKit
 - Bumped to v0.1.1, tagged, released on GitHub
-- Closed #7, #9, #11
 
-### Session 9 (2026-02-22): Sprint 3 code complete + fixes
-
-- All Sprint 3 code: handlers, sounds, items, recipes, loot, translations
-- Two in-game test rounds, fixed 6 bugs
-- Root cause: stereo OGGs, icon paths, translation format, passability
-- Discovered world sprites need tilesheet → created Issue #11
-
-### Sessions 1-8: See context.md
+### Sessions 1-9: See context.md
 
 ---
 
 ## To Resume
 
 ```
-Deadwire v0.1.1 — Sprint 3 code complete with custom sprites.
-Next: In-game test (new save required). Test all 4 wire types: craft, place, trigger, sound, remove.
-After test: Sprint 4 — CamoVisibility, CamoDegradation, SandboxVars, ModOptions.
-Only open bug: #8 (wire near door blocks passage — investigate in-game).
+Deadwire v0.1.1 — Sprint 3 audited and ready to test.
+Start a NEW save (sandbox options + translation changes need fresh save).
+Test: craft kit → place wire → zombie triggers → player triggers → sound → remove.
+Check all 4 types. Investigate #8 (door blocking) in-game.
+After test passes: Sprint 4 — CamoVisibility, CamoDegradation, SandboxVars, ModOptions.
+First Sprint 4 task: WireNetwork resync on rejoin (deferred critical from Session 11 audit).
 ```

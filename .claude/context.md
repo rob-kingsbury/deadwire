@@ -3,8 +3,8 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 10
-continue_with: "In-game test Sprint 3 (custom sprites, sounds, triggers, kits), then Sprint 4 (camo + config)"
+last_session: 11
+continue_with: "In-game test Sprint 3 (new save required), then Sprint 4 (camo + config)"
 
 tech:
   stack: pz-lua-mod
@@ -133,6 +133,27 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
 
 ## Recent Changes
+
+### Session 11 (2026-03-11): 42.15 compat + full audit + bug fixes
+- Migrated all 3 translation files to JSON format (42.15 breaking change)
+  - `ItemName_EN.txt` → `ItemName_EN.json` (drop `ItemName_` prefix from keys)
+  - `Sandbox_EN.txt` → `Sandbox_EN.json` (keep `Sandbox_` prefix)
+  - `Recipes_EN.txt` → `Recipes_EN.json` (drop `Recipe_` prefix)
+- Added `validate_pack.py` to version control
+- Removed local skill stubs (now managed as global Claude skills)
+- Created Issue #12: loot distribution for `metalfabrication`/`metalfabricationstorage` rooms (new in 42.15)
+- Full parallel audit of 6 previously-unaudited files (WireManager, BuildActions, UI, ClientCommands, TriggerHandlers, LootDistribution)
+- Fixed 8 bugs found in audit:
+  - Admin check: `character:isAccessLevel` → `isAdmin()` (client); `player:isAccessLevel` → `player:getRole():hasCapability(Capability.CanBuildAnywhere)` (server)
+  - Kit consumed before createWire validates → moved consume to after placement confirmed
+  - Double sound in MP → local PlayWorldSound now SP-only (`not isClient()`), server broadcast handles MP
+  - `setSlowFactor`/`setSlowTimer` (non-existent) → confirmed B42 stagger API (`setBumpType` + `setVariable`)
+  - Dedup timestamp: game-hours → `os.time()` real seconds (was ~1 frame window at 60x timescale)
+  - 4 missing sandbox options: `WireAffectsZombies`, `TanglefootTripChance`, `TanglefootAffectsCrawlers`, `LogWireTriggers`
+  - `DEBUG = false` (was true, log spam)
+  - Dead `hasKitItem` function removed from UI.lua
+- False positives cleared: `transmitRemoveItemFromSquare` IS valid server-side; `IsoThumpable.new` nil 5th arg matches vanilla
+- Deferred: WireNetwork resync on client rejoin (design work, Sprint 4); BodyPartType.Foot_L unverified (test in-game)
 
 ### Session 10 (2026-02-22): pz-tilesheet tool, custom sprites, bug fixes
 - Built pz-tilesheet Python CLI tool (V2 .pack + tdef .tiles + .tiles.txt from PNGs)
