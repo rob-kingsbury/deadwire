@@ -2,9 +2,9 @@
 
 ## Current Priority
 
-**Sprint 4: WireNetwork resync on rejoin → CamoVisibility → CamoDegradation → SandboxVars → ModOptions**
+**In-game test full chain (Sprint 3+4), then ModOptions UI, Issue #12 metalfabrication loot**
 
-Sprint 3 logic is fully covered by programmatic tests (131/131 passing). In-game test of sprites/sounds/UI/end-to-end chain can proceed in parallel. **New save required** for sandbox option + translation changes to take effect.
+Sprint 4 code is complete. **New save required** for sandbox option changes. Four APIs need in-game verification (see Deferred section).
 
 ---
 
@@ -23,7 +23,7 @@ Sprint 3 logic is fully covered by programmatic tests (131/131 passing). In-game
 | Custom world sprites | **Done** | deadwire_01.pack + .tiles (8 sprites, tileset ID 200) |
 | pz-tilesheet tool | **Done** | `tools/pz-tilesheet/`, also published standalone |
 | Test harness | **Done** | 131 tests, 0 failures — `run_tests.bat` (Session 12) |
-| Sprint 4 (Camo+Config) | Not Started | CamoVisibility, CamoDegradation, SandboxVars, ModOptions |
+| Sprint 4 (Camo+Config) | **Code complete** | CamoVisibility, CamoDegradation, SandboxVars done. ModOptions deferred. |
 
 ---
 
@@ -31,7 +31,6 @@ Sprint 3 logic is fully covered by programmatic tests (131/131 passing). In-game
 
 | # | Title | Labels | Status |
 |---|-------|--------|--------|
-| 8 | Wire placed near door blocks passage | bug, phase-1 | Open (needs in-game investigation) |
 | 12 | Add loot distribution for metalfabrication rooms (42.15) | enhancement, phase-1 | Open (Sprint 4) |
 
 ---
@@ -46,6 +45,11 @@ Sprint 3 logic is fully covered by programmatic tests (131/131 passing). In-game
 ## Key Technical Decisions
 
 | Decision | Rationale | Date |
+|----------|-----------|------|
+| No RecalcAllWithNeighbours on wire place | Trip wires must be pathfinding-transparent. Recalc on place updated adjacent door tiles causing blocking. Recalc only on removal. Fixes #8. | 2026-03-11 |
+| Targeted sendServerCommand(player, ...) for resync | Need to send wire list only to the connecting player, not broadcast. Verify API in-game. | 2026-03-11 |
+| CamoVisibility on OnTick+throttle (not EveryOneMinute) | Visibility needs ~1s responsiveness when player moves or gains skill. OnTick with 60-tick counter. Visual-only, no game logic. | 2026-03-11 |
+| CamoDegradation on EveryTenMinutes | Rain degrades slowly; 10-minute checks match the scale. No need for finer granularity. | 2026-03-11 |
 |----------|-----------|------|
 | `OnZombieUpdate` + hash-table | Only proven pattern for tile detection. O(1) lookup. | 2026-02-20 |
 | Detection.lua in **client/** | OnZombieUpdate/OnPlayerUpdate are client-only events. | 2026-02-20 |
@@ -65,19 +69,33 @@ Sprint 3 logic is fully covered by programmatic tests (131/131 passing). In-game
 
 ---
 
-## Deferred (Sprint 4 or later)
+## Deferred / Needs In-Game Verification
 
 | Item | Severity | Notes |
 |------|----------|-------|
-| WireNetwork resync on client rejoin | CRITICAL | Owner can't remove own wire after reconnect. Needs server-side broadcast of all active wires on player join. Design work required. |
-| BodyPartType.Foot_L enum name | MINOR | Unverified against B42. If wrong, tanglefoot damage silently no-ops. Verify in-game. |
+| `sendServerCommand(player, module, cmd, args)` targeted send | CRITICAL | Used in WireNetworkSync. If API signature is wrong, sync won't work. Verify in-game by reconnecting and checking wire network. |
+| `Climate.GetInstance():getRainStrength()` | MODERATE | Used in CamoDegradation. If API unavailable, rain degradation silently no-ops (safe failure). |
+| `Perks.Foraging` enum name | MODERATE | Used in CamoVisibility. If wrong name, getPerkLevel returns nil/0 → all wires appear invisible. |
+| `setOutlineHighlight` / `setOutlineHighlightCol` | MINOR | Used in CamoVisibility for 7+ outline. If unavailable, outline is skipped (safe failure). |
+| BodyPartType.Foot_L enum name | MINOR | Used in TriggerHandlers tanglefootPlayerHandler. If wrong, foot damage silently no-ops. |
 | tileKey float safety | MODERATE | `math.floor` coords on input to prevent float/int key mismatch. |
 | LootDistribution isServer() guard | MODERATE | Guard OnPreDistributionMerge with isServer() for MP correctness. |
 | Issue #12: metalfabrication loot | Enhancement | Add ReinforcedTripLineKit to new 42.15 metalfabrication rooms. |
+| ModOptions UI (PZAPI.ModOptions) | Enhancement | Client-side preferences. API not yet researched. Defer to next sprint. |
 
 ---
 
 ## Session History
+
+### Session 13 (2026-03-11): Fix #8, WireNetwork resync, CamoVisibility, CamoDegradation, SandboxVars
+
+- Closed #8: removed RecalcAllWithNeighbours from createWire. Wires transparent to pathfinding.
+- WireNetwork resync: OnPlayerConnect → targeted WireNetworkSync to joining player. Fixes owner-can't-remove-after-rejoin.
+- CamoVisibility.lua (client): Foraging-scaled alpha, owner/admin bypass, orange outline at 7+.
+- CamoDegradation.lua (server): rain-based camo degradation every 10 minutes, storm multiplier.
+- EventHandlers: WireCamouflaged resets alpha to 1.0 on uncamo.
+- sandbox-options.txt: 14 missing options added.
+- 4 APIs need in-game verification (see Deferred section).
 
 ### Session 12 (2026-03-11): Lua programmatic test harness
 
@@ -111,9 +129,14 @@ Sprint 3 logic is fully covered by programmatic tests (131/131 passing). In-game
 ## To Resume
 
 ```
-Deadwire v0.1.1 — Sprint 3 logic fully tested programmatically (131/131).
-In-game test still needed: sprites, sounds, UI, end-to-end trigger chain. Start new save.
-Sprint 4 first task: WireNetwork resync on client rejoin (CRITICAL deferred — owner can't remove wire after reconnect).
-Then: CamoVisibility.lua, CamoDegradation.lua, full SandboxVars, ModOptions UI.
+Deadwire v0.1.1 — Sprint 4 code complete (Session 13).
+New save required for sandbox option changes.
+Priority: in-game test full chain (Sprints 3+4).
+  - Verify targeted WireNetworkSync works on reconnect
+  - Verify camo alpha scaling by Foraging level
+  - Verify rain degradation (Climate API)
+  - Verify door bug fixed: place wire near door, confirm door opens normally
+4 APIs need in-game verification: sendServerCommand(player,...), Climate.GetInstance():getRainStrength(), Perks.Foraging, setOutlineHighlight.
+After in-game test: ModOptions UI, Issue #12 metalfabrication loot.
 Run tests anytime: run_tests.bat
 ```

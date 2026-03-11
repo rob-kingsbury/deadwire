@@ -3,8 +3,8 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 12
-continue_with: "Sprint 4: WireNetwork resync on rejoin, CamoVisibility, CamoDegradation, SandboxVars, ModOptions"
+last_session: 13
+continue_with: "Sprint 4: in-game test full chain (Sprint 3+4), then ModOptions UI, Issue #12 metalfabrication loot"
 
 tech:
   stack: pz-lua-mod
@@ -130,9 +130,18 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 1. Foundation: WireNetwork hash-table, Detection, ServerCommands, EventHandlers — **DONE (tested in-game)**
 2. Placement: ISBuildingObject, context menus, timed actions — **PASSED (tested in-game)**
 3. Sound + Trigger: handlers, loot distribution, item/recipe scripts — **CODE COMPLETE + sprites generated, needs in-game test**
-4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions
+4. Camouflage + Config: CamoVisibility, CamoDegradation, all SandboxVars, ModOptions — **CODE COMPLETE (Session 13)**
 
 ## Recent Changes
+
+### Session 13 (2026-03-11): Fix #8, WireNetwork resync, CamoVisibility, CamoDegradation, SandboxVars
+- **Fixed #8** (door blocking): removed `RecalcAllWithNeighbours` from `createWire`. Trip wires are now pathfinding-transparent — zombies navigate through them (intended). `RecalcAllWithNeighbours` moved to `destroyWire` only, to restore pathfinding after removal.
+- **WireNetwork resync on client rejoin** (CRITICAL, was deferred): `OnPlayerConnect` in WireManager.lua sends targeted `WireNetworkSync` to the joining player. Client EventHandlers.lua handles bulk-registration. Fixes: owner couldn't remove own wire after reconnect.
+- **CamoVisibility.lua** (new, client/): per-client alpha control based on Foraging skill. OnTick throttled (60 ticks). Owner/admin bypass. Configurable thresholds + ranges. Uses `setOutlineHighlight` for 7+ outline.
+- **CamoDegradation.lua** (new, server/): EveryTenMinutes rain-based camo degradation. Storm multiplier for heavy rain. Broadcasts `WireCamouflaged` on expiry.
+- **EventHandlers.lua**: `WireCamouflaged` handler now resets alpha to 1.0 + clears outline when uncamouflaging.
+- **sandbox-options.txt**: added 14 missing options — `EnableTier0`, `EnableTier1`, `CamoMaxDurability`, `CamoTriggerDegrade`, `CamoRainDegradeRate`, `CamoStormMultiplier`, `CamoVisibleToOwner`, `AdminBypassCamo`, `CamoDetectLevel{Low,Mid,Full}`, `CamoDetectRange{Low,Mid,Full}`.
+- **APIs needing in-game verification**: `sendServerCommand(player, module, cmd, args)` targeted send; `Climate.GetInstance():getRainStrength()`; `Perks.Foraging`; `setOutlineHighlight`/`setOutlineHighlightCol`.
 
 ### Session 12 (2026-03-11): Lua programmatic test harness
 - Built `tests/` harness: stubs.lua (PZ API mocks), runner.lua, run.lua, run_tests.bat
