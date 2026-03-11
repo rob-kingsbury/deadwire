@@ -224,9 +224,9 @@ end
 -- Fixes the critical bug: owner can't remove own wire after
 -- reconnecting because client WireNetwork was empty.
 --
--- API NOTE: sendServerCommand(player, module, command, args)
--- sends to a specific player only (not broadcast).
--- VERIFY IN-GAME: targeted send API — may need adjustment.
+-- Broadcast approach: sendServerCommand(module, command, args) goes to all clients.
+-- registerTile is idempotent so existing clients safely re-register their wires
+-- without duplicates. This avoids the unverified targeted 4-arg overload.
 -----------------------------------------------------------
 
 local function onPlayerConnect(player)
@@ -244,11 +244,11 @@ local function onPlayerConnect(player)
             })
         end
     end
-    sendServerCommand(player, DeadwireConfig.MODULE, "WireNetworkSync", {
+    sendServerCommand(DeadwireConfig.MODULE, "WireNetworkSync", {
         wires = wireList,
     })
-    DeadwireConfig.log("WireNetworkSync: sent " .. #wireList
-        .. " wires to " .. (player:getUsername() or "?"))
+    DeadwireConfig.log("WireNetworkSync: broadcast " .. #wireList
+        .. " wires (triggered by " .. (player:getUsername() or "?") .. " connect)")
 end
 
 Events.OnInitGlobalModData.Add(onInitGlobalModData)
