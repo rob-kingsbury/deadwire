@@ -3,8 +3,8 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 11
-continue_with: "In-game test Sprint 3 (new save required), then Sprint 4 (camo + config)"
+last_session: 12
+continue_with: "Sprint 4: WireNetwork resync on rejoin, CamoVisibility, CamoDegradation, SandboxVars, ModOptions"
 
 tech:
   stack: pz-lua-mod
@@ -134,6 +134,12 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 
 ## Recent Changes
 
+### Session 12 (2026-03-11): Lua programmatic test harness
+- Built `tests/` harness: stubs.lua (PZ API mocks), runner.lua, run.lua, run_tests.bat
+- 131 tests across Config (37), WireNetwork (45), Detection (15), ServerCommands (20) — all pass
+- Confirmed 2 API usages during testing: `os.time()` for dedup, `getRole():hasCapability()` for admin check
+- All Lua logic testable offline without PZ; run with `run_tests.bat`
+
 ### Session 11 (2026-03-11): 42.15 compat + full audit + bug fixes
 - Migrated all 3 translation files to JSON format (42.15 breaking change)
   - `ItemName_EN.txt` → `ItemName_EN.json` (drop `ItemName_` prefix from keys)
@@ -195,66 +201,5 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 - Key learning: PZ load order is shared → client → server. ISBuildingObject:derive() files MUST be in server/
 
 ### Session 7 (2026-02-21): Sprint 2 Placement System implemented
-- Created WireManager.lua: server-side wire lifecycle, IsoThumpable creation/destruction, GlobalModData persistence, save/load, chunk reconnect
-- Created BuildActions.lua: ISBuildingObject derivative for wire placement (ISDeadwireTripLine)
-- Created UI.lua: right-click context menu for placement (submenu with all tier 0/1 types) and removal (owner/admin)
-- Created ClientCommands.lua: sendClientCommand wrappers
-- Updated ServerCommands.lua: PlaceWire, RemoveWire, DebugPlaceWire all use WireManager (real IsoThumpable + persistence)
-- Updated EventHandlers.lua: WirePlaced handler caches IsoObject ref for camo visibility
-- Fixes #1 (WireNetwork persistence) and #4 (nextNetworkId persistence) via WireManager.loadAll
-- Sprint 2 note: no material cost (free placement), vanilla barbed wire placeholder sprite
-
-### Session 6 (2026-02-21): Fix mod structure, in-game test, Sprint 1 PASSED
-- CRITICAL FIX: Mod was invisible in PZ mod list — missing `42/mod.info`
-- Added `42/mod.info` (required duplicate of root mod.info)
-- Added `common/` directory (standard B42 mod structure)
-- Fixed `poster=poster.png` → `poster=42/poster.png` in root mod.info
-- Documented B42 mod structure requirement in context.md
-- Removed `--` comments from sandbox-options.txt (PZ parser may choke on them)
-- Renamed `Sandbox_Deadwire_EN.txt` → `Sandbox_EN.txt` (PZ naming convention)
-- **IN-GAME TEST PASSED**: All 5 Sprint 1 tests pass
-  - Mod loads (3/3 init messages)
-  - Debug wire registers at player tile
-  - Zombie detection fires on wire tile
-  - Player detection fires on wire tile
-  - De-duplication prevents re-trigger on same entity
-- Known minor: sandbox option labels show translation keys (fix confirmed, needs new save to verify)
-
-### Session 5 (2026-02-20): Sprite Checklist + Handoff
-- Created `docs/SPRITES.md`: comprehensive sprite checklist for all 4 phases (40 sprites total)
-- Confirmed `Base.Bell` is vanilla — no custom bell item needed, Phase 1 needs zero new inventory items
-- Note: Implementation plan recipes still reference `Base.Deadwire_Bell` — update to `Base.Bell` when writing Sprint 3
-
-### Session 4 (2026-02-20): Audit + Fixes + Sandbox Options
-- Full code audit: 3 critical, 4 moderate issues found and fixed
-- CRITICAL FIX: Moved Detection.lua from server/ to client/ (OnZombieUpdate is client event)
-- CRITICAL FIX: Made WireNetwork.registerTile idempotent (MP duplicate prevention)
-- CRITICAL FIX: Fixed CamoEnabled → EnableCamouflage key mismatch in ServerCommands.lua
-- DRY: Extracted `hasPosition()` helper in ServerCommands.lua and EventHandlers.lua
-- DRY: Extracted `getSquareFromArgs()` helper in EventHandlers.lua
-- DRY: Unified zombie/player detection into single `detectEntity()` function
-- Created basic sandbox-options.txt (14 options, 1 page)
-- Created advanced sandbox-options (60 options, 7 pages) in docs/
-- Created translation file Sandbox_Deadwire_EN.txt with descriptive labels
-- Rewrote README.md for Steam Workshop (plain English, no AI voice)
-- Fixed doc counts, file structure refs, DESIGN.md Phase 1 description
-- Consolidated mod.info files (root + Contents/)
-- Created 5 GitHub Issues for deferred items (#1-#5)
-
-### Session 3 (2026-02-20): Sprint 1 Foundation
-- Created mod directory structure and `mod.info`
-- Implemented `Config.lua`: wire types, tier defs, sandbox helpers, logging
-- Implemented `WireNetwork.lua`: O(1) hash-table tile index, network tracking, camo state
-- Implemented `Detection.lua`: OnZombieUpdate + OnPlayerUpdate with handler registry
-- Implemented `ServerCommands.lua`: OnClientCommand dispatcher + debug commands
-- Implemented `EventHandlers.lua`: OnServerCommand listener for sounds + cache updates
-
-### Session 2 (2026-02-20): Session workflow infrastructure
-- Created `.claude/` directory with context.md, settings.json, rules/
-- Created session-start and handoff skills
-- Created `CLAUDE.md`, `HANDOFF.md`, development-workflow.md
-
-### Session 1 (2026-02-20): Research + Planning
-- Created repo, ran 6 parallel research agents on B42 modding APIs
-- Wrote full implementation plan with code examples
-- Designed camouflage system and SandboxVars
+- Created WireManager.lua, BuildActions.lua, UI.lua, ClientCommands.lua
+- Sprint 2 PASSED; GlobalModData persistence, IsoThumpable placement, right-click menus

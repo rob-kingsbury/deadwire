@@ -2,9 +2,9 @@
 
 ## Current Priority
 
-**In-game test Sprint 3 end-to-end (new save required), then Sprint 4 (Camo + Config)**
+**Sprint 4: WireNetwork resync on rejoin → CamoVisibility → CamoDegradation → SandboxVars → ModOptions**
 
-Sprint 3 is code complete with custom sprites and a full audit pass. **Requires a new save** to pick up the updated sandbox options and translation files. Test all 4 wire types: craft kit → place wire → zombie/player triggers → sound + effects → removal.
+Sprint 3 logic is fully covered by programmatic tests (131/131 passing). In-game test of sprites/sounds/UI/end-to-end chain can proceed in parallel. **New save required** for sandbox option + translation changes to take effect.
 
 ---
 
@@ -22,7 +22,8 @@ Sprint 3 is code complete with custom sprites and a full audit pass. **Requires 
 | Audit (Sprints 2+3) | **Done** | 8 bugs fixed (Session 11) |
 | Custom world sprites | **Done** | deadwire_01.pack + .tiles (8 sprites, tileset ID 200) |
 | pz-tilesheet tool | **Done** | `tools/pz-tilesheet/`, also published standalone |
-| Sprint 4 (Camo+Config) | Not Started | CamoVisibility, SandboxVars, ModOptions |
+| Test harness | **Done** | 131 tests, 0 failures — `run_tests.bat` (Session 12) |
+| Sprint 4 (Camo+Config) | Not Started | CamoVisibility, CamoDegradation, SandboxVars, ModOptions |
 
 ---
 
@@ -78,6 +79,13 @@ Sprint 3 is code complete with custom sprites and a full audit pass. **Requires 
 
 ## Session History
 
+### Session 12 (2026-03-11): Lua programmatic test harness
+
+- Built full test harness: `tests/stubs.lua`, `tests/runner.lua`, `tests/run.lua`, `run_tests.bat`
+- 131 tests across 4 files — Config (37), WireNetwork (45), Detection (15), ServerCommands (20)
+- Discovered + confirmed 2 API usages during testing: `os.time()` dedup (not `getGameTime()`), `getRole():hasCapability()` in RemoveWire (not `isAccessLevel`)
+- All Lua logic now testable without PZ — `run_tests.bat` from repo root
+
 ### Session 11 (2026-03-11): 42.15 compat + full audit + bug fixes
 
 - Researched PZ 42.15 changes; key finding: translation files now JSON
@@ -103,10 +111,9 @@ Sprint 3 is code complete with custom sprites and a full audit pass. **Requires 
 ## To Resume
 
 ```
-Deadwire v0.1.1 — Sprint 3 audited and ready to test.
-Start a NEW save (sandbox options + translation changes need fresh save).
-Test: craft kit → place wire → zombie triggers → player triggers → sound → remove.
-Check all 4 types. Investigate #8 (door blocking) in-game.
-After test passes: Sprint 4 — CamoVisibility, CamoDegradation, SandboxVars, ModOptions.
-First Sprint 4 task: WireNetwork resync on rejoin (deferred critical from Session 11 audit).
+Deadwire v0.1.1 — Sprint 3 logic fully tested programmatically (131/131).
+In-game test still needed: sprites, sounds, UI, end-to-end trigger chain. Start new save.
+Sprint 4 first task: WireNetwork resync on client rejoin (CRITICAL deferred — owner can't remove wire after reconnect).
+Then: CamoVisibility.lua, CamoDegradation.lua, full SandboxVars, ModOptions UI.
+Run tests anytime: run_tests.bat
 ```

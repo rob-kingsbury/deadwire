@@ -11,10 +11,11 @@ Events = {}
 setmetatable(Events, {
     __index = function(t, k)
         local ev = { _handlers = {} }
-        ev.Add  = function(self, fn) table.insert(self._handlers, fn) end
-        ev.Fire = function(self, ...)
-            for _, fn in ipairs(self._handlers) do fn(...) end
-        end
+        -- Add: called with dot syntax in PZ code, e.g. Events.OnZombieUpdate.Add(fn)
+        ev.Add  = function(fn) table.insert(ev._handlers, fn) end
+        -- Fire: called with colon syntax in tests, e.g. Events.OnZombieUpdate:Fire(zombie)
+        -- Colon passes the table as first arg; remaining args go to handlers.
+        ev.Fire = function(_, ...) for _, fn in ipairs(ev._handlers) do fn(...) end end
         t[k] = ev
         return ev
     end
@@ -137,12 +138,28 @@ ModData = {
 function _clearModData() _modStore = {} end
 
 -----------------------------------------------------------------
+-- os.time stub (controls the dedup window in Detection.lua)
+-- Detection uses os.time() with a 1-real-second dedup window.
+-----------------------------------------------------------------
+local _osTime = 0
+local _orig_os_time = os.time
+os.time = function() return _osTime end
+function _setOsTime(t) _osTime = t end   -- test control
+
+-----------------------------------------------------------------
+-- PZ capability system stub
+-----------------------------------------------------------------
+Capability = { CanBuildAnywhere = "CanBuildAnywhere" }
+
+-----------------------------------------------------------------
 -- Sound stubs (no-op; we only care about logic, not audio)
+-- getWorldSoundManager():addSound(emitter, x, y, z, radius, volume, blocked)
+-- Called with colon syntax, so arg layout is: self, emitter, x, y, z, radius, volume, blocked
 -----------------------------------------------------------------
 local _soundCalls = {}
 function getWorldSoundManager()
     return {
-        addSound = function(_, x, y, z, radius, volume, _)
+        addSound = function(_, emitter, x, y, z, radius, volume, blocked)
             table.insert(_soundCalls, { x=x, y=y, z=z, radius=radius, volume=volume })
         end
     }
@@ -176,12 +193,18 @@ function _mockPlayer(x, y, z, username)
         getModData    = function() return modData end,
         getUsername   = function() return username or "testplayer" end,
         isAccessLevel = function() return false end,
+        getRole       = function() return {
+            hasCapability = function() return false end
+        } end,
     }
 end
 
 function _mockAdmin(x, y, z, username)
     local p = _mockPlayer(x, y, z, username)
     p.isAccessLevel = function() return true end
+    p.getRole = function() return {
+        hasCapability = function() return true end
+    } end
     return p
 end
 
@@ -190,6 +213,7 @@ end
 -----------------------------------------------------------------
 function _reset()
     _worldAgeHours = 0
+    _osTime = 0
     _squares = {}
     _modStore = {}
     _sentServer = {}
