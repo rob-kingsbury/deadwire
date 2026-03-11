@@ -3,8 +3,8 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 13
-continue_with: "Sprint 4: in-game test full chain (Sprint 3+4), then ModOptions UI, Issue #12 metalfabrication loot"
+last_session: 14
+continue_with: "In-game test full chain (Sprints 3+4), then ModOptions UI"
 
 tech:
   stack: pz-lua-mod
@@ -134,72 +134,36 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 
 ## Recent Changes
 
+### Session 14 (2026-03-11): Deferred fixes — float safety, loot guard, north orientation
+- **WireNetwork.lua**: `tileKey` now floors all 3 coords; `registerTile` floors before storing in entry. Prevents float/int key mismatch if coords arrive as 10.0 vs 10.
+- **LootDistribution.lua**: Added `isServer()` guard (MP correctness). Added `ReinforcedTripLineKit` to `MetalFabrication`/`MetalFabricationStorage` distributions (Issue #12 code done; dist names need in-game verification).
+- **ClientCommands.lua**: `placeWire` now accepts and forwards `north` param.
+- **ServerCommands.lua**: PlaceWire handler passes `args.north` to `createWire`.
+- 131/131 tests pass
+
 ### Session 13 (2026-03-11): Fix #8, WireNetwork resync, CamoVisibility, CamoDegradation, SandboxVars
-- **Fixed #8** (door blocking): removed `RecalcAllWithNeighbours` from `createWire`. Trip wires are now pathfinding-transparent — zombies navigate through them (intended). `RecalcAllWithNeighbours` moved to `destroyWire` only, to restore pathfinding after removal.
-- **WireNetwork resync on client rejoin** (CRITICAL, was deferred): `OnPlayerConnect` in WireManager.lua sends targeted `WireNetworkSync` to the joining player. Client EventHandlers.lua handles bulk-registration. Fixes: owner couldn't remove own wire after reconnect.
-- **CamoVisibility.lua** (new, client/): per-client alpha control based on Foraging skill. OnTick throttled (60 ticks). Owner/admin bypass. Configurable thresholds + ranges. Uses `setOutlineHighlight` for 7+ outline.
-- **CamoDegradation.lua** (new, server/): EveryTenMinutes rain-based camo degradation. Storm multiplier for heavy rain. Broadcasts `WireCamouflaged` on expiry.
-- **EventHandlers.lua**: `WireCamouflaged` handler now resets alpha to 1.0 + clears outline when uncamouflaging.
-- **sandbox-options.txt**: added 14 missing options — `EnableTier0`, `EnableTier1`, `CamoMaxDurability`, `CamoTriggerDegrade`, `CamoRainDegradeRate`, `CamoStormMultiplier`, `CamoVisibleToOwner`, `AdminBypassCamo`, `CamoDetectLevel{Low,Mid,Full}`, `CamoDetectRange{Low,Mid,Full}`.
-- **APIs needing in-game verification**: `sendServerCommand(player, module, cmd, args)` targeted send; `Climate.GetInstance():getRainStrength()`; `Perks.Foraging`; `setOutlineHighlight`/`setOutlineHighlightCol`.
+- **Fixed #8** (door blocking): removed `RecalcAllWithNeighbours` from `createWire`. Wires pathfinding-transparent.
+- **WireNetwork resync**: `OnPlayerConnect` broadcasts `WireNetworkSync` to all clients (idempotent registerTile).
+- **CamoVisibility.lua** (new, client/): Foraging-scaled alpha, owner/admin bypass, orange outline at 7+.
+- **CamoDegradation.lua** (new, server/): EveryTenMinutes rain-based degradation, storm multiplier.
+- **sandbox-options.txt**: added 14 missing options — EnableTier0/1, all Camo* options.
 
 ### Session 12 (2026-03-11): Lua programmatic test harness
 - Built `tests/` harness: stubs.lua (PZ API mocks), runner.lua, run.lua, run_tests.bat
 - 131 tests across Config (37), WireNetwork (45), Detection (15), ServerCommands (20) — all pass
-- Confirmed 2 API usages during testing: `os.time()` for dedup, `getRole():hasCapability()` for admin check
-- All Lua logic testable offline without PZ; run with `run_tests.bat`
+- Confirmed 2 API usages: `os.time()` dedup, `getRole():hasCapability()` admin check
 
 ### Session 11 (2026-03-11): 42.15 compat + full audit + bug fixes
-- Migrated all 3 translation files to JSON format (42.15 breaking change)
-  - `ItemName_EN.txt` → `ItemName_EN.json` (drop `ItemName_` prefix from keys)
-  - `Sandbox_EN.txt` → `Sandbox_EN.json` (keep `Sandbox_` prefix)
-  - `Recipes_EN.txt` → `Recipes_EN.json` (drop `Recipe_` prefix)
-- Added `validate_pack.py` to version control
-- Removed local skill stubs (now managed as global Claude skills)
-- Created Issue #12: loot distribution for `metalfabrication`/`metalfabricationstorage` rooms (new in 42.15)
-- Full parallel audit of 6 previously-unaudited files (WireManager, BuildActions, UI, ClientCommands, TriggerHandlers, LootDistribution)
-- Fixed 8 bugs found in audit:
-  - Admin check: `character:isAccessLevel` → `isAdmin()` (client); `player:isAccessLevel` → `player:getRole():hasCapability(Capability.CanBuildAnywhere)` (server)
-  - Kit consumed before createWire validates → moved consume to after placement confirmed
-  - Double sound in MP → local PlayWorldSound now SP-only (`not isClient()`), server broadcast handles MP
-  - `setSlowFactor`/`setSlowTimer` (non-existent) → confirmed B42 stagger API (`setBumpType` + `setVariable`)
-  - Dedup timestamp: game-hours → `os.time()` real seconds (was ~1 frame window at 60x timescale)
-  - 4 missing sandbox options: `WireAffectsZombies`, `TanglefootTripChance`, `TanglefootAffectsCrawlers`, `LogWireTriggers`
-  - `DEBUG = false` (was true, log spam)
-  - Dead `hasKitItem` function removed from UI.lua
-- False positives cleared: `transmitRemoveItemFromSquare` IS valid server-side; `IsoThumpable.new` nil 5th arg matches vanilla
-- Deferred: WireNetwork resync on client rejoin (design work, Sprint 4); BodyPartType.Foot_L unverified (test in-game)
+- Migrated all 3 translation files to JSON (42.15 breaking change)
+- Created Issue #12 (metalfabrication loot)
+- Fixed 8 bugs: admin check, kit loss, double sound, stagger API, dedup timestamp, 4 sandbox options, DEBUG flag, dead function
 
-### Session 10 (2026-02-22): pz-tilesheet tool, custom sprites, bug fixes
-- Built pz-tilesheet Python CLI tool (V2 .pack + tdef .tiles + .tiles.txt from PNGs)
-- Published as standalone repo: github.com/rob-kingsbury/pz-tilesheet
-- Generated deadwire_01 tilesheet (8 sprites, 512x128 atlas, tileset ID 200)
-- Config.lua: populated Sprites table with tilesheet indices
-- mod.info: added pack=deadwire_01, tiledef=deadwire_01 200, bumped to v0.1.1
-- Fixed #3: dedup flags now use timestamp with 1-second expiry (was permanent boolean)
-- Fixed #10: added TanglefootKit item, recipe (3x TreeBranch + Twine + 2x Nails), icon, translations
-- Closed #7 (superseded), #9 (superseded by pz-tilesheet), #11 (completed)
-- Created v0.1.1 GitHub release + tag
+### Session 10 (2026-02-22): pz-tilesheet + sprites + bug fixes
+- Built pz-tilesheet Python CLI (V2 .pack + tdef .tiles + .tiles.txt)
+- Generated deadwire_01 tilesheet (8 sprites, 512x128, ID 200)
+- Fixed #3: dedup flags timestamp-based; Fixed #10: TanglefootKit; Bumped to v0.1.1
 
-### Session 9 (2026-02-22): Sprint 3 code complete + bug fixes
-- Sprint 3 implementation: TriggerHandlers.lua, sound scripts, item/recipe scripts, translation files, loot distribution, ClientCommands wireTriggered wrapper, ServerCommands WireTriggered handler
-- Created 3 kit items (TinCanTripLineKit, ReinforcedTripLineKit, BellTripLineKit) with recipes
-- Created sound scripts (Deadwire_TinCanRattle, Deadwire_WireRattle, Deadwire_BellRing)
-- First test round: icons broken (wrong path), display names broken (wrong translation file format), wires impassable (zombies thumping)
-- Fixed icon paths: moved to `textures/Item_Name.png` (no subdirectory, `Item_` prefix)
-- Fixed translation: renamed `Items_EN.txt` → `ItemName_EN.txt`, table `ItemName_EN`, keys `ItemName_Base.*`
-- Fixed passability: `setIsThumpable(false)`, `setBlockAllTheSquare(false)` in WireManager
-- Fixed sound scripts: added `is3D = true` for positional audio
-- Second test round: triggers confirmed working (both zombie + player), but sounds silent, wrong fallback sprite, no DisplayCategory, wireType shown as raw key
-- Root cause: OGG files were stereo (PZ requires mono for is3D=true, fails silently)
-- Converted OGGs to mono (user provided), replaced in mod
-- Added `DisplayCategory = Deadwire` to all item scripts
-- Fixed remove wire label: shows "Remove Tin Can Trip Line" instead of raw wireType
-- UI.lua: placement menu only shows when player has kits in inventory
-- Created Issues #9 (TileZed sprites), #10 (tanglefoot kit), #11 (Python packer tool)
-- Installed Rust (for pz-pack), but no MSVC linker — decided to build Python packer tool instead
-- Updated README with current state and accurate project structure
-- **Blocking**: custom world sprites need `.pack` + `.tiles` tilesheet (individual PNGs don't work for IsoThumpable)
+### Sessions 1-9: See git log
 
 ### Session 8 (2026-02-21): Fix BuildActions load order + audit
 - CRITICAL FIX: Moved BuildActions.lua from client/ to server/ (ISBuildingObject is in server/, loads after client/)

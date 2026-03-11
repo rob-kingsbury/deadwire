@@ -8,12 +8,13 @@ require "Deadwire/Config"
 
 DeadwireClientCommands = DeadwireClientCommands or {}
 
-function DeadwireClientCommands.placeWire(x, y, z, wireType)
+function DeadwireClientCommands.placeWire(x, y, z, wireType, north)
     sendClientCommand(DeadwireConfig.MODULE, "PlaceWire", {
         x = x,
         y = y,
         z = z,
         wireType = wireType,
+        north = north,
     })
 end
 

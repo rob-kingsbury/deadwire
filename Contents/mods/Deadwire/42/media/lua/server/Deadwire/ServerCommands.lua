@@ -84,7 +84,7 @@ handlers["PlaceWire"] = function(player, args)
 
     -- Create IsoThumpable + register in WireNetwork + persist
     local networkId = DeadwireNetwork.generateNetworkId()
-    local obj = DeadwireWireManager.createWire(sq, wireType, username, networkId)
+    local obj = DeadwireWireManager.createWire(sq, wireType, username, networkId, args.north)
     if not obj then
         DeadwireConfig.log("PlaceWire: WireManager.createWire failed")
         return

@@ -25,7 +25,7 @@ local nextNetworkId = 1
 -----------------------------------------------------------
 
 function DeadwireNetwork.tileKey(x, y, z)
-    return x .. "," .. y .. "," .. z
+    return math.floor(x) .. "," .. math.floor(y) .. "," .. math.floor(z)
 end
 
 function DeadwireNetwork.parseKey(key)
@@ -56,6 +56,9 @@ end
 -----------------------------------------------------------
 
 function DeadwireNetwork.registerTile(x, y, z, networkId, wireType, ownerId)
+    x = math.floor(x)
+    y = math.floor(y)
+    z = math.floor(z)
     local key = DeadwireNetwork.tileKey(x, y, z)
 
     -- Idempotent: if already registered, update fields and return existing.

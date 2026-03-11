@@ -11,12 +11,13 @@ local function getSpawnChance()
 end
 
 local function preDistributionMerge()
+    if not isServer() then return end
     if not DeadwireConfig.getSandbox("EnableMod", true) then return end
 
     local chance = getSpawnChance()
 
-    -- Distribution name -> spawn chance multiplier
-    local distributions = {
+    -- Bell loot: general utility/farm locations
+    local bellDists = {
         "FarmTools",
         "BarnTools",
         "ToolStoreTools",
@@ -26,14 +27,32 @@ local function preDistributionMerge()
         "ChurchMisc",
     }
 
-    for _, distName in ipairs(distributions) do
+    local bellCount = 0
+    for _, distName in ipairs(bellDists) do
         if ProceduralDistributions.list[distName] then
             table.insert(ProceduralDistributions.list[distName].items, "Base.Bell")
             table.insert(ProceduralDistributions.list[distName].items, chance)
+            bellCount = bellCount + 1
         end
     end
 
-    DeadwireConfig.log("LootDistribution: bells added to " .. #distributions .. " tables (chance=" .. chance .. ")")
+    -- Issue #12: ReinforcedTripLineKit in 42.15 metalfabrication rooms
+    -- NOTE: distribution names need in-game verification for 42.15
+    local kitDists = {
+        "MetalFabrication",
+        "MetalFabricationStorage",
+    }
+
+    local kitCount = 0
+    for _, distName in ipairs(kitDists) do
+        if ProceduralDistributions.list[distName] then
+            table.insert(ProceduralDistributions.list[distName].items, "Base.ReinforcedTripLineKit")
+            table.insert(ProceduralDistributions.list[distName].items, chance)
+            kitCount = kitCount + 1
+        end
+    end
+
+    DeadwireConfig.log("LootDistribution: bells→" .. bellCount .. " tables, kits→" .. kitCount .. " tables (chance=" .. chance .. ")")
 end
 
 Events.OnPreDistributionMerge.Add(preDistributionMerge)
