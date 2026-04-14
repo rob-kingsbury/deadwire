@@ -3,8 +3,8 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 14
-continue_with: "In-game test full chain (Sprints 3+4), then ModOptions UI"
+last_session: 15
+continue_with: "Complete world sprites (in progress via Gemini), then in-game test full chain"
 
 tech:
   stack: pz-lua-mod
@@ -134,24 +134,18 @@ Pages: General, Sound, Trip Lines, Tanglefoot, Camouflage, Multiplayer, Loot
 
 ## Recent Changes
 
+### Session 15 (2026-04-14): Gemini image prompting + pz_unpack.py + new inventory icons
+- Built `pz_unpack.py` (at `c:/xampp/htdocs/pz-tilesheet/`) — extracts sprites from .pack files. Used to pull `fencing_damaged_01_1/4.png` as world sprite references.
+- Generated + saved all 4 inventory icons (32x32) via Gemini: TinCan, Bell, Reinforced, Tanglefoot kits. Replaced placeholders.
+- World sprites in progress via Gemini (east + north for all 4 wire types). Full-size source PNGs at repo root, pending manual crop/resize before tilesheet rebuild.
+
 ### Session 14 (2026-03-11): Deferred fixes — float safety, loot guard, north orientation
-- **WireNetwork.lua**: `tileKey` now floors all 3 coords; `registerTile` floors before storing in entry. Prevents float/int key mismatch if coords arrive as 10.0 vs 10.
-- **LootDistribution.lua**: Added `isServer()` guard (MP correctness). Added `ReinforcedTripLineKit` to `MetalFabrication`/`MetalFabricationStorage` distributions (Issue #12 code done; dist names need in-game verification).
-- **ClientCommands.lua**: `placeWire` now accepts and forwards `north` param.
-- **ServerCommands.lua**: PlaceWire handler passes `args.north` to `createWire`.
-- 131/131 tests pass
+- **WireNetwork.lua**: `tileKey` now floors all 3 coords. **LootDistribution.lua**: `isServer()` guard + Issue #12 code.
+- **ClientCommands/ServerCommands**: `north` param forwarded to `createWire`. 131/131 tests pass.
 
 ### Session 13 (2026-03-11): Fix #8, WireNetwork resync, CamoVisibility, CamoDegradation, SandboxVars
-- **Fixed #8** (door blocking): removed `RecalcAllWithNeighbours` from `createWire`. Wires pathfinding-transparent.
-- **WireNetwork resync**: `OnPlayerConnect` broadcasts `WireNetworkSync` to all clients (idempotent registerTile).
-- **CamoVisibility.lua** (new, client/): Foraging-scaled alpha, owner/admin bypass, orange outline at 7+.
-- **CamoDegradation.lua** (new, server/): EveryTenMinutes rain-based degradation, storm multiplier.
-- **sandbox-options.txt**: added 14 missing options — EnableTier0/1, all Camo* options.
-
-### Session 12 (2026-03-11): Lua programmatic test harness
-- Built `tests/` harness: stubs.lua (PZ API mocks), runner.lua, run.lua, run_tests.bat
-- 131 tests across Config (37), WireNetwork (45), Detection (15), ServerCommands (20) — all pass
-- Confirmed 2 API usages: `os.time()` dedup, `getRole():hasCapability()` admin check
+- Closed #8 (door blocking). WireNetwork resync on player connect. CamoVisibility + CamoDegradation new files.
+- sandbox-options.txt: 14 missing options added.
 
 ### Session 11 (2026-03-11): 42.15 compat + full audit + bug fixes
 - Migrated all 3 translation files to JSON (42.15 breaking change)

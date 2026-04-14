@@ -2,9 +2,9 @@
 
 ## Current Priority
 
-**In-game test full chain (Sprints 3+4)**
+**Complete world sprites, then in-game test full chain (Sprints 3+4)**
 
-All deferred code items now resolved. New save required for sandbox option changes. Four APIs still need in-game verification.
+All 4 inventory icons replaced with Gemini-generated art (Session 15). World sprites in progress — full-size source PNGs saved at repo root, need manual crop/resize then tilesheet rebuild before in-game test.
 
 ---
 
@@ -20,7 +20,7 @@ All deferred code items now resolved. New save required for sandbox option chang
 | Sprint 3 (Sound+Trigger) | **Ready to test** | Code complete + audited + custom sprites + all kits |
 | 42.15 compat | **Done** | Translation files migrated to JSON (Session 11) |
 | Audit (Sprints 2+3) | **Done** | 8 bugs fixed (Session 11) |
-| Custom world sprites | **Done** | deadwire_01.pack + .tiles (8 sprites, tileset ID 200) |
+| Custom world sprites | **In progress** | Placeholders replaced with Gemini art in progress. Source PNGs at repo root pending resize + tilesheet rebuild. |
 | pz-tilesheet tool | **Done** | `tools/pz-tilesheet/`, also published standalone |
 | Test harness | **Done** | 131 tests, 0 failures — `run_tests.bat` (Session 12) |
 | Sprint 4 (Camo+Config) | **Code complete** | CamoVisibility, CamoDegradation, SandboxVars done. ModOptions deferred. |
@@ -87,56 +87,32 @@ All deferred code items now resolved. New save required for sandbox option chang
 
 ## Session History
 
+### Session 15 (2026-04-14): Gemini art — inventory icons + world sprite pipeline
+
+- Built `pz_unpack.py` at `c:/xampp/htdocs/pz-tilesheet/` — extracts sprites from .pack files.
+- Unpacked Tiles2x.pack, identified `fencing_damaged_01_1/4.png` as world sprite references.
+- Generated + saved all 4 inventory icons (32x32) via Gemini. Replaced placeholders in mod textures.
+- World sprites in progress. Full-size source PNGs at repo root pending manual crop/resize + tilesheet rebuild.
+
 ### Session 14 (2026-03-11): Deferred fixes — float safety, loot guard, north orientation
 
-- tileKey/registerTile: `math.floor` on all coords — prevents float/int key mismatch
-- LootDistribution: added `isServer()` guard for MP correctness
-- Issue #12 code: `ReinforcedTripLineKit` added to `MetalFabrication`/`MetalFabricationStorage` dist tables (names need in-game verification)
-- north orientation: `ClientCommands.placeWire` + `ServerCommands PlaceWire` handler now forward `args.north` to `createWire`
-- 131/131 tests pass; synced to PZ mods folder
-
-### Session 13 (2026-03-11): Fix #8, WireNetwork resync, CamoVisibility, CamoDegradation, SandboxVars
-
-- Closed #8: removed RecalcAllWithNeighbours from createWire. Wires transparent to pathfinding.
-- WireNetwork resync: OnPlayerConnect → broadcast WireNetworkSync to all clients (idempotent).
-- CamoVisibility.lua (client): Foraging-scaled alpha, owner/admin bypass, orange outline at 7+.
-- CamoDegradation.lua (server): rain-based camo degradation every 10 minutes, storm multiplier.
-- EventHandlers: WireCamouflaged resets alpha to 1.0 + clears outline on uncamo.
-- sandbox-options.txt: 14 missing options added.
-
-### Session 12 (2026-03-11): Lua programmatic test harness
-
-- Built full test harness: `tests/stubs.lua`, `tests/runner.lua`, `tests/run.lua`, `run_tests.bat`
-- 131 tests across 4 files — Config (37), WireNetwork (45), Detection (15), ServerCommands (20)
-- Confirmed 2 API usages: `os.time()` dedup, `getRole():hasCapability()` admin check
-
-### Session 11 (2026-03-11): 42.15 compat + full audit + bug fixes
-
-- Migrated all 3 translation files to JSON (42.15 breaking change)
-- Created Issue #12 (metalfabrication loot)
-- Fixed 8 bugs: admin check, kit loss, double sound, stagger API, dedup timestamp, 4 sandbox options, DEBUG flag, dead function
-
-### Session 10 (2026-02-22): pz-tilesheet + sprites + bug fixes
-
-- Built pz-tilesheet Python CLI (V2 .pack + tdef .tiles + .tiles.txt)
-- Generated deadwire_01 tilesheet (8 sprites, 512x128, ID 200)
-- Fixed #3: dedup flags timestamp-based; Fixed #10: TanglefootKit; Bumped to v0.1.1
-
-### Sessions 1-9: See context.md
+- tileKey/registerTile: `math.floor` on all coords. LootDistribution: `isServer()` guard + Issue #12 code.
+- ClientCommands/ServerCommands: `north` param forwarded. 131/131 tests pass.
 
 ---
 
 ## To Resume
 
 ```
-Deadwire v0.1.1 — all Phase 1 code complete (Session 14).
-New save required for sandbox option changes.
-Priority: in-game test full chain (Sprints 3+4).
-  - Verify door bug fixed: place wire near door, confirm door opens normally
-  - Verify WireNetworkSync works on reconnect (wire visible + removable after rejoin)
-  - Verify camo alpha scaling by Foraging level
-  - Verify rain degradation (Climate API — logs kits→N tables if metalfab dists found)
-  - Verify Issue #12: check server log for "kits→N tables" — if 0, dist names need fixing
+Deadwire v0.1.1 — all Phase 1 code complete. World sprites being replaced with Gemini art.
+Step 1: Finish world sprites.
+  - Full-size source PNGs sitting at repo root (4 wire types x 2 orientations = 8 files)
+  - Crop/resize each to 64x128px with wire sitting near bottom of canvas
+  - Rebuild tilesheet: python pz_tilesheet.py (in tools/pz-tilesheet/)
+  - Reference images for Gemini prompting: fencing_damaged_01_1.png (east), fencing_damaged_01_4.png (north)
+    at C:\Users\roban\tmp-pz-tiles\ (extracted from Tiles2x.pack via pz_unpack.py)
+Step 2: New save required for sandbox option changes, then in-game test full chain (Sprints 3+4).
+  - Verify door bug fixed, WireNetworkSync on reconnect, camo alpha, rain degradation, Issue #12 dist names
 4 APIs still need in-game verification: sendServerCommand(player,...), Climate.GetInstance():getRainStrength(), Perks.Foraging, setOutlineHighlight.
 After in-game test: ModOptions UI.
 Run tests anytime: run_tests.bat
