@@ -160,11 +160,21 @@ end
 -- Camouflage
 -----------------------------------------------------------
 
+-- The alpha reset lives here, not in the client's WireCamouflaged handler,
+-- because sendServerCommand does nothing outside a dedicated server: in single
+-- player that handler never runs. Uncamouflaging a wire removes it from
+-- camoTiles, and CamoVisibility only ever touches tiles in camoTiles, so
+-- whatever alpha it was last left at is permanent. A single-player player below
+-- the detection level with CamoVisibleToOwner off was left with a wire stuck at
+-- alpha 0 -- invisible and still armed -- for good (#35).
+--
+-- Putting it here means it runs on whichever side flips the flag.
 function DeadwireNetwork.setCamouflaged(x, y, z, camouflaged, durability)
     local key = DeadwireNetwork.tileKey(x, y, z)
     local entry = tileIndex[key]
     if not entry then return end
 
+    local wasCamouflaged = entry.camouflaged
     entry.camouflaged = camouflaged
     entry.camoDurability = durability or 0
 
@@ -172,6 +182,10 @@ function DeadwireNetwork.setCamouflaged(x, y, z, camouflaged, durability)
         camoTiles[key] = entry
     else
         camoTiles[key] = nil
+        if wasCamouflaged and entry.isoObject then
+            entry.isoObject:setAlphaAndTarget(1.0)
+            entry.isoObject:setOutlineHighlight(false)
+        end
     end
 end
 
@@ -188,6 +202,33 @@ function DeadwireNetwork.setIsoObject(x, y, z, obj)
     if entry then
         entry.isoObject = obj
     end
+end
+
+-- Find this wire's IsoThumpable on its own square and cache it. Returns the
+-- object, or nil if the chunk is not loaded or nothing is there.
+--
+-- The Lua command that announces a wire and the object sync that carries the
+-- IsoThumpable are separate packets. When the command lands first the reference
+-- is nil, and LoadGridsquare will not fire again for a chunk that is already
+-- loaded, so anything needing the object skips that tile for good -- which
+-- leaves a freshly camouflaged wire fully visible (#41).
+function DeadwireNetwork.relinkIsoObject(x, y, z)
+    local entry = tileIndex[DeadwireNetwork.tileKey(x, y, z)]
+    if not entry then return nil end
+
+    local cell = getCell()
+    local sq = cell and cell:getGridSquare(x, y, z)
+    if not sq then return nil end
+
+    local objects = sq:getSpecialObjects()
+    for i = 0, objects:size() - 1 do
+        local obj = objects:get(i)
+        if obj and obj:getModData() and obj:getModData()["dw_type"] then
+            entry.isoObject = obj
+            return obj
+        end
+    end
+    return nil
 end
 
 -----------------------------------------------------------

@@ -171,6 +171,53 @@ test("same zombie triggers wire again after 2 seconds have passed", function()
 end)
 
 
+test("dedup writes two fixed keys, not one per tile crossed (#41)", function()
+    _reset()
+    _setOsTime(1000000)
+    for i = 1, 4 do
+        _makeSquare(20 + i, 30, 0)
+        DeadwireNetwork.registerTile(20 + i, 30, 0, 1, "tin_can_tripline", "alice")
+    end
+    DeadwireDetection.zombieHandlers["tin_can_tripline"] = function() end
+
+    local zombie = _mockZombie(21, 30, 0)
+    for i = 1, 4 do
+        _moveTo(zombie, 20 + i, 30, 0)
+        Events.OnZombieUpdate:Fire(zombie)
+    end
+
+    -- modData persists with the entity for the life of the save, so a key per
+    -- crossed tile grew without bound on any zombie patrolling a perimeter.
+    local keys = 0
+    for k, _ in pairs(zombie:getModData()) do keys = keys + 1 end
+    assert_eq(keys, 2, "four tiles crossed must still leave exactly two keys")
+
+    DeadwireDetection.zombieHandlers["tin_can_tripline"] = nil
+end)
+
+test("dedup does not block a different wire in the same second (#41)", function()
+    _reset()
+    _setOsTime(1000000)
+    _makeSquare(40, 40, 0)
+    _makeSquare(41, 40, 0)
+    DeadwireNetwork.registerTile(40, 40, 0, 1, "tin_can_tripline", "alice")
+    DeadwireNetwork.registerTile(41, 40, 0, 2, "tin_can_tripline", "alice")
+
+    local count = 0
+    DeadwireDetection.zombieHandlers["tin_can_tripline"] = function()
+        count = count + 1
+    end
+
+    local zombie = _mockZombie(40, 40, 0)
+    Events.OnZombieUpdate:Fire(zombie)
+    _moveTo(zombie, 41, 40, 0)
+    Events.OnZombieUpdate:Fire(zombie)   -- same second, next tile along
+
+    assert_eq(count, 2, "walking into a second wire must fire it")
+
+    DeadwireDetection.zombieHandlers["tin_can_tripline"] = nil
+end)
+
 suite("Detection: cooldown")
 
 test("wire on cooldown prevents handler from firing", function()

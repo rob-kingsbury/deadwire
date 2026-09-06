@@ -40,6 +40,18 @@ end
 -----------------------------------------------------------
 
 local function onEveryTenMinutes()
+    -- Authoritative side only. server/ is a load-order directory, not a guard:
+    -- this file also runs on every multiplayer client, against that client's
+    -- own copy of the network, which never sees the trigger-degrade updates the
+    -- server applies. The two copies then expire camo at different times, and
+    -- when the client's expires first the wire is left at alpha 0 -- invisible
+    -- and armed -- until the server's broadcast catches up. Its own
+    -- sendServerCommand is a no-op there anyway (#35).
+    --
+    -- isClient() is false in single player and on a dedicated server, which are
+    -- exactly the two places this should run.
+    if isClient() then return end
+
     if not DeadwireConfig.getSandbox("EnableCamouflage", true) then return end
 
     local rainIntensity = getRainIntensity()

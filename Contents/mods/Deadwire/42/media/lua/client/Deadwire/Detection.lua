@@ -76,16 +76,27 @@ local function detectEntity(entity, isZombie)
         end
     end
 
-    -- De-duplicate: prevent same entity from firing multiple triggers
-    -- within the same tick cycle (MP latency means cooldown may not be
-    -- set on client yet). Uses timestamp with 1-second expiry window.
+    -- De-duplicate: prevent the same entity from firing the same wire twice in
+    -- a tick cycle (MP latency means the cooldown may not have reached this
+    -- client yet). Real seconds, not game hours.
+    --
+    -- Two fixed keys, not one per tile. This used to write "dw_t_<x,y,z>" for
+    -- every tile an entity ever crossed and never remove any of them, and
+    -- modData persists with the entity, so a long-lived zombie patrolling a
+    -- wired perimeter accumulated a key per tile for the life of the save
+    -- (#41). Entities from an older save still carry those orphans; they are
+    -- inert and not worth a migration pass.
     local key = DeadwireNetwork.tileKey(x, y, z)
     local data = entity:getModData()
     local now = os.time()  -- real-time seconds (not game-hours)
-    local lastTrigger = data["dw_t_" .. key]
     local DEDUP_SECONDS = 1  -- 1 real second
-    if lastTrigger and (now - lastTrigger) < DEDUP_SECONDS then return end
-    data["dw_t_" .. key] = now
+    if data["dw_lastTile"] == key
+        and data["dw_lastTime"]
+        and (now - data["dw_lastTime"]) < DEDUP_SECONDS then
+        return
+    end
+    data["dw_lastTile"] = key
+    data["dw_lastTime"] = now
 
     local label = isZombie and "Zombie" or "Player"
     DeadwireConfig.debugLog(label .. " triggered wire at " .. key .. " type=" .. wire.wireType)

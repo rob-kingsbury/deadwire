@@ -87,7 +87,12 @@ local function onTick()
             local dx = math.abs(wire.x - px)
             local dy = math.abs(wire.y - py)
             if dx <= MAX_RANGE and dy <= MAX_RANGE then
+                -- A wire whose IsoThumpable has not arrived yet used to be
+                -- skipped every second forever, leaving it at full alpha with
+                -- the player believing it was hidden. Look it up here instead;
+                -- once found it is cached on the entry (#41).
                 local obj = wire.isoObject
+                    or DeadwireNetwork.relinkIsoObject(wire.x, wire.y, wire.z)
                 if obj then
                     local dist     = math.sqrt(dx * dx + dy * dy)
                     local isOwner  = (wire.ownerId == username)

@@ -92,3 +92,62 @@ test("payload is empty when nothing is saved", function()
     _reset()
     assert_eq(#DeadwireWireManager.buildSyncPayload(), 0)
 end)
+
+suite("WireManager: a missing sprite fails loudly (#39)")
+
+test("there is no FALLBACK_SPRITE to substitute", function()
+    assert_nil(DeadwireConfig.FALLBACK_SPRITE,
+        "a vanilla wall frame standing in for a trip wire looked like it worked")
+end)
+
+test("createWire refuses a wire type with no sprite", function()
+    _reset()
+    local sq = _makeSquare(70, 70, 0)
+
+    -- A type with defaults but no Sprites entry: exactly the shape a new wire
+    -- type takes on the day someone adds it and forgets the sprite table.
+    DeadwireConfig.WireDefaults["spriteless_test"] = { health = 10, tier = 0 }
+
+    local obj = DeadwireWireManager.createWire(sq, "spriteless_test", "alice", 99)
+
+    DeadwireConfig.WireDefaults["spriteless_test"] = nil
+
+    assert_nil(obj, "no sprite must mean no wire, not a wall frame")
+    assert_nil(DeadwireNetwork.getTile(70, 70, 0), "and nothing registered")
+end)
+
+test("createWire still works for a real type", function()
+    _reset()
+    local sq = _makeSquare(71, 71, 0)
+
+    local obj = DeadwireWireManager.createWire(sq, "tin_can_tripline", "alice", 1)
+
+    assert_not_nil(obj, "a declared type must still place")
+    assert_not_nil(DeadwireNetwork.getTile(71, 71, 0), "and register")
+end)
+
+suite("WireManager: run-mode guard on load (#35)")
+
+test("the authoritative side loads the saved wires", function()
+    _reset()                       -- isClient() false: single player or dedicated server
+    DeadwireWireManager.saveWire(80, 80, 0, 1, "tin_can_tripline", "alice")
+
+    Events.OnInitGlobalModData:Fire(false)
+
+    assert_not_nil(DeadwireNetwork.getTile(80, 80, 0), "the save is the source of truth here")
+end)
+
+test("a multiplayer client does not load from its own empty save table", function()
+    _reset()
+    DeadwireWireManager.saveWire(81, 81, 0, 1, "tin_can_tripline", "alice")
+    DeadwireNetwork.registerTile(81, 81, 0, 1, "tin_can_tripline", "alice")
+    _setClient(true)
+
+    Events.OnInitGlobalModData:Fire(false)
+
+    -- server/ is a load-order directory, not a guard: this file runs on clients
+    -- too, where the real wire list arrives from RequestWireSync instead.
+    assert_nil(DeadwireNetwork.getTile(81, 81, 0),
+        "the client still clears, so joining a second server carries nothing over")
+    _setClient(false)
+end)

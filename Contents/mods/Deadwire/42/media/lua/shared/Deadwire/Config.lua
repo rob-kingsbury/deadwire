@@ -40,6 +40,13 @@ DeadwireConfig.Tiers = {
 -- WireNetwork.lua for why (#16). Reinforced and Bell currently differ only in
 -- sound clip and radius; the cooldown is the obvious lever to separate them
 -- and is deliberately left equal pending a balance decision.
+--
+-- Every type declares it, including the ones that do not want one. The reader
+-- used to fall back to `or 36`, so tanglefoot silently inherited the Tier 1
+-- trip line cooldown and a horde walking into it got one 40 percent roll per
+-- tile per 36 real seconds instead of a roll each (#37). A missing value now
+-- logs. Tin can keeps 36 for when TinCanBreakOnTrigger is off, which is the
+-- number it was already getting; changing it is a balance call, not this fix.
 -----------------------------------------------------------
 DeadwireConfig.WireDefaults = {
     tin_can_tripline = {
@@ -48,6 +55,7 @@ DeadwireConfig.WireDefaults = {
         soundRadius = 25,
         soundVolume = 60,
         breakOnTrigger = true,
+        cooldownSeconds = 36,   -- only reached with TinCanBreakOnTrigger off
         tier = 0,
     },
     reinforced_tripline = {
@@ -73,6 +81,7 @@ DeadwireConfig.WireDefaults = {
         maxSpan = 1,
         tripChance = 40,
         proneDuration = 3.0,
+        cooldownSeconds = 0,    -- no cooldown: every zombie entering gets a roll
         tier = 1,
     },
 }
@@ -97,7 +106,13 @@ DeadwireConfig.Sprites = {
     tin_can_tripline    = { north = "deadwire_01_9", east = "deadwire_01_8" },
 }
 
-DeadwireConfig.FALLBACK_SPRITE = "construction_01_24"
+-- There is deliberately no FALLBACK_SPRITE. It used to be
+-- "construction_01_24", a vanilla metal wall frame, and it was unreachable:
+-- createWire returns nil for any type without WireDefaults before it ever asks
+-- for a sprite, all four real types have both sprites, and BuildActions only
+-- ever sees the four the UI offers. A fallback around a name that might be a
+-- typo is indistinguishable from a fallback around a real gap, which is rule 7
+-- and has cost this project three features. A missing sprite now logs (#39).
 
 -----------------------------------------------------------
 -- Kit Items (wireType -> inventory item fullname)

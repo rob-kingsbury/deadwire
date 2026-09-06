@@ -277,9 +277,18 @@ handlers["WireTriggered"] = function(player, args)
             z = args.z,
         })
     else
-        -- Reusable: set cooldown. cooldownSeconds is real seconds (#16).
-        local cooldownSec = defaults.cooldownSeconds or 36
-        cooldownSeconds = DeadwireNetwork.setCooldown(args.x, args.y, args.z, cooldownSec)
+        -- Reusable: set cooldown. cooldownSeconds is real seconds (#16), and is
+        -- declared per type in Config with no fallback here, so a type that
+        -- forgets one says so instead of quietly borrowing another type of
+        -- wire's number the way tanglefoot borrowed 36 (#37). Zero means no
+        -- cooldown at all.
+        local cooldownSec = defaults.cooldownSeconds
+        if cooldownSec == nil then
+            DeadwireConfig.log("WireTriggered: " .. wireType
+                .. " declares no cooldownSeconds, wire will re-arm immediately")
+        elseif cooldownSec > 0 then
+            cooldownSeconds = DeadwireNetwork.setCooldown(args.x, args.y, args.z, cooldownSec)
+        end
     end
 
     -- Degrade camo durability if camouflaged. Both branches write through to
@@ -307,12 +316,15 @@ handlers["WireTriggered"] = function(player, args)
             .. args.x .. "," .. args.y .. "," .. args.z .. " by " .. username)
     end
 
-    -- Broadcast to all clients: sound for MP audio, cooldownSeconds so their
-    -- local WireNetwork agrees the wire is spent. Detection runs client-side
-    -- against the client's own copy, so without this the cooldown existed only
-    -- on the server and every reusable wire re-armed instantly for every client
-    -- in MP. Tanglefoot has no sound and still needs the cooldown, so the
-    -- broadcast is no longer conditional on soundName.
+    -- Broadcast: sound for MP audio, cooldownSeconds so each client's own
+    -- WireNetwork agrees the wire is spent. Detection runs client-side against
+    -- that copy, so without this the cooldown existed only on the server and
+    -- every reusable wire re-armed instantly for every client in MP.
+    --
+    -- This does nothing outside a dedicated server: sendServerCommand returns
+    -- immediately in single player and on clients (#35). Single player does not
+    -- need it, because both halves of the mod share one tileIndex in memory --
+    -- the cooldown set above is already the one Detection will read.
     if soundName or cooldownSeconds then
         sendServerCommand(DeadwireConfig.MODULE, "WireTriggered", {
             x = args.x,

@@ -77,12 +77,14 @@ function ISDeadwireTripLine:new(wireType, character)
     self.__index = self
     o:init()
 
-    -- Set per-type sprites (fallback to vanilla barbed wire)
+    -- Per-type sprites, with nothing substituted for a missing one (#39).
     local wt = wireType or DeadwireConfig.WireTypes.TIN_CAN
     local sprites = DeadwireConfig.Sprites[wt]
-    local fallback = DeadwireConfig.FALLBACK_SPRITE
-    o:setSprite(sprites and sprites.east or fallback)
-    o:setNorthSprite(sprites and sprites.north or fallback)
+    if not sprites then
+        DeadwireConfig.log("BuildActions: no sprites declared for " .. tostring(wt))
+    end
+    o:setSprite(sprites and sprites.east)
+    o:setNorthSprite(sprites and sprites.north)
 
     -- character is nil on the server's rebuild; ActionManager sets it before
     -- create() runs. Note the server also assigns an IsoPlayer to o.player in

@@ -292,6 +292,86 @@ test("multiple tiles tracked in camoTiles independently", function()
 end)
 
 
+suite("DeadwireNetwork camouflage: visual reset (#35)")
+
+test("uncamouflaging restores full alpha and clears the outline", function()
+    _reset()
+    local sq = _makeSquare(30, 30, 0)
+    DeadwireNetwork.registerTile(30, 30, 0, 1, "tin_can_tripline", "alice")
+    local obj = IsoThumpable.new(nil, sq, "deadwire_01_8", false, nil)
+    DeadwireNetwork.setIsoObject(30, 30, 0, obj)
+
+    DeadwireNetwork.setCamouflaged(30, 30, 0, true, 100)
+    obj:setAlphaAndTarget(0.0)         -- what CamoVisibility does to a hidden wire
+    obj:setOutlineHighlight(true)
+
+    DeadwireNetwork.setCamouflaged(30, 30, 0, false, 0)
+
+    -- The reset used to live only in the client's WireCamouflaged handler,
+    -- which never runs in single player, so the wire stayed invisible for good.
+    assert_eq(obj._alpha, 1.0, "an uncamouflaged wire must become visible again")
+    assert_false(obj._outline, "and must lose the outline")
+end)
+
+test("camouflaging does not touch alpha (CamoVisibility owns that)", function()
+    _reset()
+    local sq = _makeSquare(31, 31, 0)
+    DeadwireNetwork.registerTile(31, 31, 0, 1, "tin_can_tripline", "alice")
+    local obj = IsoThumpable.new(nil, sq, "deadwire_01_8", false, nil)
+    DeadwireNetwork.setIsoObject(31, 31, 0, obj)
+
+    DeadwireNetwork.setCamouflaged(31, 31, 0, true, 100)
+
+    assert_eq(obj._alpha, 1.0, "alpha is per-viewer and set on CamoVisibility's tick")
+end)
+
+test("uncamouflaging a wire that was never camouflaged leaves alpha alone", function()
+    _reset()
+    local sq = _makeSquare(32, 32, 0)
+    DeadwireNetwork.registerTile(32, 32, 0, 1, "tin_can_tripline", "alice")
+    local obj = IsoThumpable.new(nil, sq, "deadwire_01_8", false, nil)
+    DeadwireNetwork.setIsoObject(32, 32, 0, obj)
+    obj:setAlphaAndTarget(0.3)
+
+    DeadwireNetwork.setCamouflaged(32, 32, 0, false, 0)
+
+    assert_eq(obj._alpha, 0.3, "no flag flipped, nothing to reset")
+end)
+
+suite("DeadwireNetwork.relinkIsoObject (#41)")
+
+test("finds the wire object on a loaded square and caches it", function()
+    _reset()
+    local sq = _makeSquare(33, 33, 0)
+    DeadwireNetwork.registerTile(33, 33, 0, 1, "tin_can_tripline", "alice")
+
+    -- IsoThumpable.new puts itself on the square, as the real one does.
+    local obj = IsoThumpable.new(nil, sq, "deadwire_01_8", false, nil)
+    obj:getModData()["dw_type"] = "tin_can_tripline"
+
+    assert_nil(DeadwireNetwork.getTile(33, 33, 0).isoObject,
+        "the reference starts nil, as it does when the command beats the object sync")
+
+    local found = DeadwireNetwork.relinkIsoObject(33, 33, 0)
+    assert_eq(found, obj, "the wire object should be found")
+    assert_eq(DeadwireNetwork.getTile(33, 33, 0).isoObject, obj, "and cached on the entry")
+end)
+
+test("returns nil when the square holds no wire object", function()
+    _reset()
+    _makeSquare(34, 34, 0)
+    DeadwireNetwork.registerTile(34, 34, 0, 1, "tin_can_tripline", "alice")
+
+    assert_nil(DeadwireNetwork.relinkIsoObject(34, 34, 0),
+        "a bare square must not yield an object")
+end)
+
+test("returns nil for a tile with no registered wire", function()
+    _reset()
+    _makeSquare(35, 35, 0)
+    assert_nil(DeadwireNetwork.relinkIsoObject(35, 35, 0))
+end)
+
 suite("DeadwireNetwork cooldown")
 
 -- Cooldowns are measured in REAL seconds (os.time), not game hours -- see #16.

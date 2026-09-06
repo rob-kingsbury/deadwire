@@ -606,6 +606,50 @@ test("wire with camo at durability=10 (degrade=15 -> <=0): camo removed, WireCam
     assert_eq(camoCmd.args.z, 0)
 end)
 
+-- #37: cooldownSeconds is declared per wire type. There is no `or 36` fallback,
+-- because that is how tanglefoot came to inherit the Tier 1 trip line cooldown
+-- and give a whole horde one 40 percent roll per tile per 36 real seconds.
+
+test("tanglefoot gets no cooldown (#37)", function()
+    resetAll()
+    _setOsTime(1000)
+    _makeSquare(14, 14, 0)
+    DeadwireNetwork.registerTile(14, 14, 0, 1, "tanglefoot", "alice")
+    _mockZombie(14, 14, 0)
+
+    local bob = _mockPlayer(14, 14, 0, "bob")
+
+    Events.OnClientCommand:Fire("Deadwire", "WireTriggered", bob, {
+        x = 14, y = 14, z = 0, wireType = "tanglefoot"
+    })
+
+    assert_false(DeadwireNetwork.isOnCooldown(14, 14, 0),
+        "every zombie entering a tanglefoot tile gets its own roll")
+    assert_eq(#_destroyedWires, 0, "and tanglefoot does not break")
+end)
+
+test("a type declaring no cooldownSeconds borrows nobody else's (#37)", function()
+    resetAll()
+    _setOsTime(1000)
+    _makeSquare(15, 15, 0)
+    DeadwireNetwork.registerTile(15, 15, 0, 1, "reinforced_tripline", "alice")
+    _mockZombie(15, 15, 0)
+
+    -- Stand in for a wire type someone adds and forgets to give a cooldown.
+    local saved = DeadwireConfig.WireDefaults.reinforced_tripline.cooldownSeconds
+    DeadwireConfig.WireDefaults.reinforced_tripline.cooldownSeconds = nil
+
+    local bob = _mockPlayer(15, 15, 0, "bob")
+    Events.OnClientCommand:Fire("Deadwire", "WireTriggered", bob, {
+        x = 15, y = 15, z = 0, wireType = "reinforced_tripline"
+    })
+
+    DeadwireConfig.WireDefaults.reinforced_tripline.cooldownSeconds = saved
+
+    assert_false(DeadwireNetwork.isOnCooldown(15, 15, 0),
+        "a missing value must log, not silently become 36")
+end)
+
 -----------------------------------------------------------------
 -- RequestWireSync tests (#33)
 --

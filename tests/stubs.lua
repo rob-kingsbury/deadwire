@@ -22,6 +22,22 @@ setmetatable(Events, {
 })
 
 -----------------------------------------------------------------
+-- Run mode
+--
+-- isClient() is true ONLY on a multiplayer client. It is false in single
+-- player AND on a dedicated server, which is why it, and not isServer(), is
+-- the guard for "the authoritative side". Defaults to false, so a module that
+-- forgets the guard is exercised in the mode most tests mean.
+--
+-- isServer() is deliberately not stubbed. Nothing under test calls it, and a
+-- stub that answers questions nobody asked is how three checkers here have
+-- blessed a bug.
+-----------------------------------------------------------------
+local _isClient = false
+function isClient() return _isClient end
+function _setClient(v) _isClient = v and true or false end
+
+-----------------------------------------------------------------
 -- SandboxVars (overridable per test)
 -----------------------------------------------------------------
 SandboxVars = { Deadwire = {} }
@@ -86,11 +102,19 @@ function _makeSquare(x, y, z)
 end
 
 -- Put an existing mock entity on a square. _mockZombie and _mockPlayer call
--- this for themselves when their square exists; call it directly to move one.
+-- this for themselves when their square exists.
 function _placeOn(entity, x, y, z)
     local sq = _squares[x .. "," .. y .. "," .. z]
     if sq then sq:_addMover(entity) end
     return entity
+end
+
+-- Walk an entity to another tile, keeping its modData. The old tile keeps the
+-- reference in its moving-objects list, which does not matter for anything
+-- currently under test and is not worth pretending otherwise about.
+function _moveTo(entity, x, y, z)
+    entity._sq = _squares[x .. "," .. y .. "," .. z]
+    return _placeOn(entity, x, y, z)
 end
 
 local _cell = {
@@ -165,6 +189,7 @@ IsoThumpable = {
         local modData = {}
         local obj = {
             _sq = sq, _sprite = sprite, _modData = modData,
+            _alpha = 1.0, _outline = false,
             setName                      = function() end,
             setMaxHealth                 = function() end,
             setHealth                    = function() end,
@@ -174,6 +199,12 @@ IsoThumpable = {
             getModData                   = function(self) return self._modData end,
             getSquare                    = function(self) return self._sq end,
             transmitCompleteItemToClients = function() end,
+            -- Visual state, recorded so tests can assert an uncamouflaged wire
+            -- was actually made visible again rather than merely dropped from
+            -- the camo index.
+            setAlphaAndTarget    = function(self, a) self._alpha = a end,
+            setOutlineHighlight  = function(self, v) self._outline = v end,
+            setOutlineHighlightCol = function() end,
         }
         if sq then sq:AddSpecialObject(obj) end
         return obj
@@ -255,8 +286,9 @@ function _mockZombie(x, y, z, alive)
     local sq = _squares[x .. "," .. y .. "," .. z]
     local z_ = {
         _class      = "IsoZombie",
+        _sq         = sq,
         isAlive     = function() return alive ~= false end,
-        getSquare   = function() return sq end,
+        getSquare   = function(self) return self._sq end,
         getModData  = function() return modData end,
         getUsername = function() return nil end,
     }
@@ -311,8 +343,9 @@ function _mockPlayer(x, y, z, username)
     local inv = _makeInventory()
     local p = {
         _class        = "IsoPlayer",
+        _sq           = sq,
         isAlive       = function() return true end,
-        getSquare     = function() return sq end,
+        getSquare     = function(self) return self._sq end,
         getModData    = function() return modData end,
         getUsername   = function() return username or "testplayer" end,
         getInventory  = function() return inv end,
@@ -345,6 +378,7 @@ end
 -- Global reset: call between test suites for clean slate
 -----------------------------------------------------------------
 function _reset()
+    _isClient = false
     _worldAgeHours = 0
     _osTime = 0
     _squares = {}

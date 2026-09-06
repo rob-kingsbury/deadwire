@@ -13,15 +13,18 @@ DeadwireWireManager = DeadwireWireManager or {}
 -- GlobalModData key for persistence
 local SAVE_KEY = "DeadwireWires"
 
--- Resolve sprite name for a wire type and orientation
+-- Resolve sprite name for a wire type and orientation.
+-- Returns nil and says so rather than substituting a vanilla sprite: a wall
+-- frame standing in for a missing trip wire looked like a working feature (#39).
 local function getSprite(wireType, north)
     local sprites = DeadwireConfig.Sprites[wireType]
-    if not sprites then return DeadwireConfig.FALLBACK_SPRITE end
-    if north then
-        return sprites.north or DeadwireConfig.FALLBACK_SPRITE
-    else
-        return sprites.east or DeadwireConfig.FALLBACK_SPRITE
+    local name = sprites and (north and sprites.north or sprites.east)
+    if not name then
+        DeadwireConfig.log("WireManager: no "
+            .. (north and "north" or "east") .. " sprite for " .. tostring(wireType))
+        return nil
     end
+    return name
 end
 
 -----------------------------------------------------------
@@ -47,6 +50,7 @@ function DeadwireWireManager.createWire(sq, wireType, ownerId, networkId, north)
 
     -- Create IsoThumpable in the world
     local sprite = getSprite(wireType, north or false)
+    if not sprite then return nil end
     local health = DeadwireConfig.getWireHealth(wireType)
     local obj = IsoThumpable.new(getWorld():getCell(), sq, sprite, north or false, nil)
     obj:setName("DeadwireTripLine")
@@ -233,6 +237,16 @@ end
 -----------------------------------------------------------
 
 local function onInitGlobalModData(isNewGame)
+    -- On a multiplayer client this file runs too, and the table it would read
+    -- is the client's own -- always empty, so loadAll cleared the network and
+    -- logged "loaded 0 wires" at a player whose wires were all on the server
+    -- (#35). Still clear here, so leaving one server and joining another does
+    -- not carry stale tiles over; the real list arrives from RequestWireSync.
+    if isClient() then
+        DeadwireNetwork.clear()
+        return
+    end
+
     DeadwireWireManager.loadAll()
 end
 

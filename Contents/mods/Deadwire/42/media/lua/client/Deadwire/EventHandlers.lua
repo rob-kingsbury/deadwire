@@ -22,25 +22,6 @@ local function getSquareFromArgs(args)
     return getCell():getGridSquare(args.x, args.y, args.z)
 end
 
--- Find the wire's IsoThumpable on its square and cache the reference.
--- CamoVisibility needs it to fade a wire, and destroyWire needs it to remove
--- one. LoadGridsquare supplies it for chunks that load later; this covers the
--- ones already loaded when the command arrives.
-local function cacheIsoObject(x, y, z)
-    local sq = getCell():getGridSquare(x, y, z)
-    if not sq then return false end
-
-    local objects = sq:getSpecialObjects()
-    for i = 0, objects:size() - 1 do
-        local obj = objects:get(i)
-        if obj and obj:getModData() and obj:getModData()["dw_type"] then
-            DeadwireNetwork.setIsoObject(x, y, z, obj)
-            return true
-        end
-    end
-    return false
-end
-
 -----------------------------------------------------------
 -- Main Dispatcher
 -----------------------------------------------------------
@@ -97,7 +78,7 @@ handlers["WirePlaced"] = function(args)
     )
 
     -- Cache the IsoObject reference for client-side camo visibility
-    cacheIsoObject(args.x, args.y, args.z)
+    DeadwireNetwork.relinkIsoObject(args.x, args.y, args.z)
 
     DeadwireConfig.debugLog("Wire placed at " .. args.x .. "," .. args.y .. "," .. args.z)
 end
@@ -120,16 +101,10 @@ end
 handlers["WireCamouflaged"] = function(args)
     if not hasPosition(args) then return end
 
-    -- When uncamouflaging: reset alpha to full opacity before removing from
-    -- camo index. Without this the wire stays invisible until next render cycle.
-    if not args.camouflaged then
-        local entry = DeadwireNetwork.getTile(args.x, args.y, args.z)
-        if entry and entry.isoObject then
-            entry.isoObject:setAlphaAndTarget(1.0)
-            entry.isoObject:setOutlineHighlight(false)
-        end
-    end
-
+    -- The alpha and outline reset used to live here. It is inside
+    -- WireNetwork.setCamouflaged now, because this handler only ever runs on a
+    -- multiplayer client -- single player never receives a server command at
+    -- all, so the reset never happened there (#35).
     DeadwireNetwork.setCamouflaged(
         args.x, args.y, args.z,
         args.camouflaged,
@@ -169,7 +144,7 @@ handlers["WireNetworkSync"] = function(args)
                     wire.x, wire.y, wire.z, true, wire.camoDurability or 0
                 )
             end
-            if cacheIsoObject(wire.x, wire.y, wire.z) then
+            if DeadwireNetwork.relinkIsoObject(wire.x, wire.y, wire.z) then
                 linked = linked + 1
             end
             count = count + 1
