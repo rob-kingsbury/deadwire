@@ -1,185 +1,140 @@
-# Implementation Plan: pz-tilesheet + Version Bump
+# Deadwire Plan
 
-## Part A: Version Bump & GitHub Setup
-
-### A1. Bump mod version 0.1.0 → 0.1.1
-- Edit `Contents/mods/Deadwire/mod.info` — change `modversion=0.1.1`
-- Edit `Contents/mods/Deadwire/42/mod.info` — same change
-
-### A2. Create git tag + GitHub release
-- `git tag v0.1.1` after commit
-- `gh release create v0.1.1 --title "v0.1.1 — Sprint 3 code complete" --notes "..."`
+Living plan document. The pz-tilesheet build and the 0.1.0 to 0.1.1 version bump
+that used to fill this file are both finished; the `.pack` and `.tiles.txt`
+format specs that were written up here now live in `../pz-tilesheet/README.md`,
+which is the tool's own repo and the right place for them.
 
 ---
 
-## Part B: Python CLI Tool — `pz-tilesheet`
+## Session 20: full code review before Phase 2 (#30)
 
-General-purpose tool. Lives at `tools/pz-tilesheet/` in the repo.
+### What we are actually doing
 
-### Confirmed Format Specs
+Two passes over the same 2,136 lines of Lua. Fable hunts for bugs and writes the
+fix plan. Opus executes it. Nothing new gets built until the existing code is
+believed.
 
-**.pack V2 binary format** (verified from pz-pack Rust source + hex dumps):
-```
-Header:
-  "PZPK"           (4 bytes, magic)
-  mask              (i32 LE, always 1)
-  pages_count       (u32 LE)
+The reason this is worth a whole session: Session 16 found six silent failures,
+Session 17 found eleven, Session 18 found three more. None of them threw an
+error. Every one of them was a thing that looked correct, ran without complaint,
+and did nothing. That rate has not yet flattened out, which is the only evidence
+that matters for whether another pass will pay.
 
-Per Page:
-  page_name_len     (u32 LE)
-  page_name         (UTF-8 bytes)
-  entries_count     (u32 LE)
-  page_mask         (i32 LE, always 1)
+### The code under review
 
-  Per Entry × entries_count:
-    entry_name_len  (u32 LE)
-    entry_name      (UTF-8 bytes, e.g. "deadwire_01_0")
-    x_pos           (u32 LE, pixel X in atlas)
-    y_pos           (u32 LE, pixel Y in atlas)
-    width           (u32 LE, sprite width)
-    height          (u32 LE, sprite height)
-    x_offset        (u32 LE, 0 for full-cell sprites)
-    y_offset        (u32 LE, 0 for full-cell sprites)
-    total_width     (u32 LE, cell width = sprite width)
-    total_height    (u32 LE, cell height = sprite height)
+| File | Lines | Runs on |
+|---|---|---|
+| `server/ServerCommands.lua` | 366 | server |
+| `shared/WireNetwork.lua` | 259 | both |
+| `server/WireManager.lua` | 258 | server |
+| `client/TriggerHandlers.lua` | 198 | client |
+| `shared/Config.lua` | 196 | both |
+| `client/EventHandlers.lua` | 174 | client |
+| `client/Detection.lua` | 128 | client |
+| `client/UI.lua` | 127 | client |
+| `client/CamoVisibility.lua` | 111 | client |
+| `server/CamoDegradation.lua` | 93 | server |
+| `server/BuildActions.lua` | 89 | server |
+| `server/LootDistribution.lua` | 81 | server |
+| `client/ClientCommands.lua` | 56 | client |
 
-  image_data_len    (u32 LE)
-  image_data        (raw PNG bytes)
-```
+Plus the data files that are just as capable of failing silently:
+`deadwire_items.txt`, `deadwire_recipes.txt`, `deadwire_sounds.txt`,
+`sandbox-options.txt`, and the four JSON files under `Translate/EN/`.
 
-**.tiles.txt text format** (verified from vanilla + workshop mods):
-```
-version = 1
+### Expected behaviour, so the review has something to check against
 
-tileset
-{
-    file = deadwire_01
-    size = 8,1
-    id = 200
+This is the spec. Where the code disagrees with this list, one of the two is
+wrong and the review says which.
 
-    // deadwire_01_0
-    tile
-    {
-        xy = 0,0
-    }
-}
-```
+**Tin can trip line (tier 0).** Health 50, spans up to 4 tiles, breaks when
+triggered. Makes a rattle audible to zombies within 25 tiles at volume 60. The
+break-on-trigger behaviour is the one property a server owner can turn off
+(`TinCanBreakOnTrigger`), and health is settable (`TripLineHealth`).
 
-Key relationships:
-- `file = X` in .tiles.txt matches the page_name in .pack
-- Entry names = `pagename_index` where index = row * cols + col
-- mod.info: `pack=NAME` → `media/texturepacks/NAME.pack`
-- mod.info: `tiledef=NAME ID` → `media/NAME.tiles.txt`
+**Reinforced trip line (tier 1).** Health 150 (settable via
+`ReinforcedHealth`), spans up to 8, survives being triggered, 36 real seconds of
+cooldown before it can fire again, sound radius 40 at volume 80.
 
-### B1. File structure
+**Bell trip line (tier 1).** Same as reinforced except sound radius 60 and a
+different clip. No health sandbox option on purpose. Right now it is otherwise
+stat-identical to reinforced, which is #27 and is a balance decision Rob owes us,
+not a bug.
 
-```
-tools/pz-tilesheet/
-  pz_tilesheet.py       # Single-file CLI tool (~300 lines)
-  README.md             # Usage docs
-```
+**Tanglefoot (tier 1).** Health 100, occupies one tile, 40 percent chance to trip
+whatever walks in, 3 seconds prone. No sound.
 
-Single file. No package structure. Dependencies: Pillow only (stdlib + Pillow).
+**Cooldowns are real seconds** measured with `os.time`, and they broadcast as a
+duration rather than an absolute time, because two machines' clocks do not agree.
 
-### B2. CLI interface
+**Camouflage** hides a wire from anyone who is not its owner or in the owner's
+group, degrades in rain, and its visibility check keys off the Foraging perk
+(`Perks.PlantScavenging` internally).
 
-```bash
-python pz_tilesheet.py \
-  --name deadwire_01 \
-  --id 200 \
-  --sprites sprites/*.png \
-  --cols 8 \
-  --out ./output/
-```
+**Everything authoritative happens server-side.** Client detects and asks, server
+validates and decides, server broadcasts, clients play the sound. A client that
+lies gets refused.
 
-Arguments:
-- `--name` (required): Tilesheet name. Becomes page name in .pack, `file` in .tiles.txt
-- `--id` (required): Tile definition ID (100-8190, must be unique across mods)
-- `--sprites` (required): Glob or list of PNG files. Sorted alphabetically for deterministic ordering.
-- `--cols` (optional, default=8): Columns in the atlas grid. Rows computed automatically.
-- `--out` (required): Output directory. Creates `texturepacks/NAME.pack` and `NAME.tiles.txt` inside it.
-- `--tile-props` (optional): JSON file mapping sprite names to tile properties (for non-default props)
-- `--verbose` / `-v`: Print atlas layout and entry details
+### What the hunt is looking for, in priority order
 
-### B3. Core logic
+1. **Guards that are never true, or always true.** The `isServer()` bug is the
+   template: a single-player game has `isServer()` and `isClient()` both false, so
+   `if not isServer() then return end` disabled loot for the life of the mod
+   without one line of log output. Every early-return in the codebase gets asked
+   the same question: under which of the three run modes (single player, hosted
+   client, dedicated server) is this branch taken?
+2. **Names that do not resolve.** `python scripts/verify_names.py` covers 109 of
+   them and is the only checker in this repo that has ever caught anything. The
+   hunt's job is to find the references it does not cover yet, and to widen it.
+3. **Settings that nothing reads.** Four sandbox options were found in Session 17
+   being offered to server owners while no code looked at them. Every option in
+   `sandbox-options.txt` needs a reader.
+4. **Two things that agree with each other and nothing else.** The crafting
+   category prefix was wrong in exactly two places, and those two places were the
+   mod and the checker written to verify the mod. Any value that appears twice
+   and is verified nowhere is the same shape.
+5. **Client authority leaks.** Two multiplayer exploits were fixed in Session 17.
+   Assume there are more; check every `OnClientCommand` argument for whether the
+   server re-derives it or trusts it.
+6. **The `WireNetwork` graph walk at perimeter scale.** It is the foundation for
+   the fence electrification idea, and nobody has looked at what it costs on a
+   long run of wire.
 
-1. **Load PNGs**: Read all input files with Pillow. Validate same dimensions. Sort alphabetically.
-2. **Build atlas**: Create grid image (cols × rows). Paste sprites left-to-right, top-to-bottom.
-3. **Write .pack**: V2 format — PZPK header, one page, N entries, atlas PNG bytes.
-4. **Write .tiles.txt**: Text format — version, one tileset block, N tile blocks.
-5. **Print summary**: Sprite name → index mapping for integration.
+### Two loose ends the survey turned up
 
-### B4. Tile properties support
+- `media/` ships both `deadwire_01.tiles` (120 bytes) and
+  `deadwire_01.tiles.txt` (981 bytes), and they are not the same file. `mod.info`
+  says `tiledef=deadwire_01 200`. Only one of these can be the one PZ reads.
+  Find out which, delete the other.
+- `DeadwireConfig.FALLBACK_SPRITE = "construction_01_24"` is a metal wall frame
+  standing in for a missing sprite. All ten real sprites now exist and are
+  verified in-game, so this may be a guard with nothing left to guard.
 
-Default: tiles with no properties (empty `tile { xy = X,Y }` blocks).
+### The oracles
 
-Optional `--tile-props` JSON for custom properties per sprite:
-```json
-{
-  "deadwire_01_0": { "solid": true },
-  "deadwire_01_2": { "MaterialType": "Metal_Small" }
-}
-```
+Use the sibling projects, not general Lua advice.
 
-Boolean properties emit `PropertyName =` (flag). String/int properties emit `PropertyName = value`.
+- `../unbreaker` and `../pz-head-for-the-hills` are our own shipped B42 mods.
+- `../pz-test-pilot` is the live harness, for anything that needs a running game.
+- `../pz-tilesheet` for sprite and tiledef questions.
+- **Do not trust `../pz-mod-checker`.** It reported this repo clean before and
+  after the Session 16 audit and caught none of the six failures found that day,
+  nor the eleven from Session 17. A clean result from it is not evidence.
 
-### B5. Validation
+### Done means
 
-- All input PNGs must have identical dimensions
-- ID must be 100-8190
-- Name must be valid (alphanumeric + underscores)
-- At least 1 sprite required
-- Warn if atlas exceeds 2048×2048 (PZ texture limit)
+- Every finding is either fixed, or filed as an issue with the evidence in it.
+- `run_tests.bat` still passes (159 at the start of the session).
+- `python scripts/verify_names.py` still exits 0, and covers more than 109
+  references than it did at the start if the hunt found a gap.
+- `python tools/validate_pack.py` still passes its 130 checks.
+- The mod is synced to `C:/Users/roban/Zomboid/mods/Deadwire/`.
 
----
+### What this session cannot settle
 
-## Part C: Generate Deadwire Tilesheet
-
-### C1. Run the tool
-
-```bash
-python tools/pz-tilesheet/pz_tilesheet.py \
-  --name deadwire_01 \
-  --id 200 \
-  --sprites Contents/mods/Deadwire/42/media/textures/deadwire_*.png \
-  --cols 8 \
-  --out Contents/mods/Deadwire/42/media/
-```
-
-Output:
-- `Contents/mods/Deadwire/42/media/texturepacks/deadwire_01.pack`
-- `Contents/mods/Deadwire/42/media/deadwire_01.tiles.txt`
-
-### C2. Update mod.info (both files)
-
-Add these lines:
-```ini
-pack=deadwire_01
-tiledef=deadwire_01 200
-```
-
-### C3. Update Config.lua sprite mapping
-
-Replace the empty `Sprites` table with actual sprite names:
-```lua
-DeadwireConfig.Sprites = {
-    tin_can_tripline =    { north = "deadwire_01_X", east = "deadwire_01_Y" },
-    reinforced_tripline = { north = "deadwire_01_X", east = "deadwire_01_Y" },
-    bell_tripline =       { north = "deadwire_01_X", east = "deadwire_01_Y" },
-    tanglefoot =          { north = "deadwire_01_X", east = "deadwire_01_Y" },
-}
-```
-
-Exact indices depend on alphabetical sort order of the 8 PNGs.
-
-### C4. Sync to PZ mods folder and provide test steps
-
----
-
-## Execution Order
-
-1. Build the Python tool (B1-B5)
-2. Generate Deadwire tilesheet (C1)
-3. Update mod files (C2-C3)
-4. Sync + test instructions (C4)
-5. Version bump + commit + tag + release (A1-A2)
+Sounds actually being audible, camouflage actually being invisible, rain actually
+degrading it, and a zombie actually walking into a wire. Those are the remainder
+of #25 and they need someone sitting in a running game. Multiplayer cooldowns
+cannot be tested in single player at all. The review can prove the code is
+*capable* of being right; only the harness proves it *is*.
