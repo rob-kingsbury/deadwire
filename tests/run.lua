@@ -26,6 +26,7 @@ require "Deadwire/ServerCommands" -- registers Events.OnClientCommand
 dofile("tests/test_config.lua")
 dofile("tests/test_wire_network.lua")
 dofile("tests/test_detection.lua")
+dofile("tests/test_wire_manager.lua")
 dofile("tests/test_server_commands.lua")
 
 -- Print final results (exits with code 1 if any failures)

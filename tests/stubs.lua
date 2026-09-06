@@ -43,6 +43,7 @@ local _squares = {}
 function _makeSquare(x, y, z)
     local key = x .. "," .. y .. "," .. z
     local objects = {}
+    local movers = {}
     local sq = {
         _x = x, _y = y, _z = z,
         getX = function(self) return self._x end,
@@ -63,9 +64,33 @@ function _makeSquare(x, y, z)
             end
         end,
         RecalcAllWithNeighbours = function() end,
+
+        -- Live zombies and players on this tile. Real IsoGridSquare returns an
+        -- ArrayList here, hence size()/get(i) with a zero base. Starts empty
+        -- and only ever holds what a test explicitly put there -- the server's
+        -- trigger gate reads this to decide whether anything actually walked
+        -- into a wire, so a stub that invented occupants could not tell an
+        -- empty tile from an occupied one.
+        getMovingObjects = function(self)
+            return {
+                size = function() return #movers end,
+                get  = function(_, i) return movers[i + 1] end,
+            }
+        end,
+        _addMover = function(self, obj)
+            table.insert(movers, obj)
+        end,
     }
     _squares[key] = sq
     return sq
+end
+
+-- Put an existing mock entity on a square. _mockZombie and _mockPlayer call
+-- this for themselves when their square exists; call it directly to move one.
+function _placeOn(entity, x, y, z)
+    local sq = _squares[x .. "," .. y .. "," .. z]
+    if sq then sq:_addMover(entity) end
+    return entity
 end
 
 local _cell = {
@@ -78,16 +103,46 @@ function getWorld() return { getCell = function() return _cell end } end
 function _clearSquares() _squares = {} end
 
 -----------------------------------------------------------------
+-- instanceof (PZ global, used to tell IsoZombie from IsoPlayer)
+--
+-- Answers from the class the mock declares for itself. A mock that declares
+-- nothing is not an instance of anything, so asking about a class no mock
+-- sets is false rather than true -- the opposite of the Events table's old
+-- behaviour, which invented whatever it was asked for.
+-----------------------------------------------------------------
+function instanceof(obj, className)
+    if type(obj) ~= "table" then return false end
+    return obj._class == className
+end
+
+-----------------------------------------------------------------
 -- Command capture: sendServerCommand / sendClientCommand
 -----------------------------------------------------------------
 _sentServer = {}
 _sentClient = {}
 
-function sendServerCommand(mod, cmd, args)
-    table.insert(_sentServer, { mod = mod, cmd = cmd, args = args })
+-- Both real overloads exist and PZ picks by the first argument's type:
+--   sendServerCommand(module, command, table)             -> every client
+--   sendServerCommand(player, module, command, table)     -> that one client
+-- Recording only the 3-arg shape would have silently shifted every field by one
+-- for the targeted send the join sync uses (#33).
+local function _isPlayer(v)
+    return type(v) == "table" and v._class == "IsoPlayer"
 end
-function sendClientCommand(mod, cmd, args)
-    table.insert(_sentClient, { mod = mod, cmd = cmd, args = args })
+
+function sendServerCommand(a, b, c, d)
+    if _isPlayer(a) then
+        table.insert(_sentServer, { target = a, mod = b, cmd = c, args = d })
+    else
+        table.insert(_sentServer, { target = nil, mod = a, cmd = b, args = c })
+    end
+end
+function sendClientCommand(a, b, c, d)
+    if _isPlayer(a) then
+        table.insert(_sentClient, { target = a, mod = b, cmd = c, args = d })
+    else
+        table.insert(_sentClient, { target = nil, mod = a, cmd = b, args = c })
+    end
 end
 function _clearCommands()
     _sentServer = {}
@@ -198,12 +253,14 @@ function _getSoundCalls() return _soundCalls end
 function _mockZombie(x, y, z, alive)
     local modData = {}
     local sq = _squares[x .. "," .. y .. "," .. z]
-    return {
+    local z_ = {
+        _class      = "IsoZombie",
         isAlive     = function() return alive ~= false end,
         getSquare   = function() return sq end,
         getModData  = function() return modData end,
         getUsername = function() return nil end,
     }
+    return _placeOn(z_, x, y, z)
 end
 
 -- Inventory stub: only the container methods Deadwire actually calls.
@@ -252,7 +309,8 @@ function _mockPlayer(x, y, z, username)
     local modData = {}
     local sq = _squares[x .. "," .. y .. "," .. z]
     local inv = _makeInventory()
-    return {
+    local p = {
+        _class        = "IsoPlayer",
         isAlive       = function() return true end,
         getSquare     = function() return sq end,
         getModData    = function() return modData end,
@@ -263,6 +321,7 @@ function _mockPlayer(x, y, z, username)
             hasCapability = function() return false end
         } end,
     }
+    return _placeOn(p, x, y, z)
 end
 
 function _mockAdmin(x, y, z, username)

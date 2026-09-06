@@ -357,6 +357,7 @@ test("tin_can (breakOnTrigger=true): destroyWire called, WireDestroyed sent", fu
     resetAll()
     local sq = _makeSquare(6, 6, 0)
     DeadwireNetwork.registerTile(6, 6, 0, 1, "tin_can_tripline", "alice")
+    _mockZombie(6, 6, 0)   -- something is actually on the wire (#31)
 
     local player = _mockPlayer(6, 6, 0, "bob")
 
@@ -380,6 +381,7 @@ test("reinforced (breakOnTrigger=false): no destroy, cooldown set, WireTriggered
     resetAll()
     local sq = _makeSquare(7, 7, 0)
     DeadwireNetwork.registerTile(7, 7, 0, 1, "reinforced_tripline", "alice")
+    _mockZombie(7, 7, 0)   -- something is actually on the wire (#31)
 
     _setOsTime(1000)
     local player = _mockPlayer(7, 7, 0, "bob")
@@ -411,6 +413,7 @@ test("TinCanBreakOnTrigger=false makes tin can reusable end to end", function()
     _setOsTime(1000)
     local sq = _makeSquare(6, 6, 0)
     DeadwireNetwork.registerTile(6, 6, 0, 1, "tin_can_tripline", "alice")
+    _mockZombie(6, 6, 0)   -- something is actually on the wire (#31)
 
     local player = _mockPlayer(6, 6, 0, "bob")
 
@@ -423,72 +426,136 @@ test("TinCanBreakOnTrigger=false makes tin can reusable end to end", function()
         "a now-reusable tin can must get a cooldown instead")
 end)
 
--- #15: detection is necessarily client-side, so the server cannot verify that
--- a wire fired -- only that the reporter is close enough to have seen it.
+-- #31: the server cannot observe a trigger -- detection has to be client-side --
+-- so it re-derives the fact instead of trusting the reporter, by looking for a
+-- zombie or player on the wire square or one of its 8 neighbours.
+--
+-- The four tests these replace asserted the bug: they measured how far away the
+-- REPORTING player was, which is why trip lines only fired when somebody was
+-- already standing next to them. Reporter distance is now only a 100-tile
+-- sanity bound, and honest reports from across the map are accepted.
 
-test("trigger report from a distant player is rejected (#15)", function()
+test("distant reporter is accepted when a zombie is on the wire (#31)", function()
     resetAll()
-    local sq = _makeSquare(6, 6, 0)
-    _makeSquare(200, 200, 0)
+    _makeSquare(6, 6, 0)
+    _makeSquare(60, 60, 0)
+    DeadwireNetwork.registerTile(6, 6, 0, 1, "tin_can_tripline", "alice")
+    _mockZombie(6, 6, 0)
+
+    -- 54 tiles away: nowhere near the wire, and exactly the case the old gate
+    -- threw away. This is the whole feature.
+    local bob = _mockPlayer(60, 60, 0, "bob")
+
+    Events.OnClientCommand:Fire("Deadwire", "WireTriggered", bob, {
+        x = 6, y = 6, z = 0, wireType = "tin_can_tripline"
+    })
+
+    assert_eq(#_destroyedWires, 1, "a wire tripped far from any player must still fire")
+    assert_not_nil(_findServerCmd("WireDestroyed"))
+    assert_not_nil(_findServerCmd("WireTriggered"))
+end)
+
+test("report is rejected when nothing is near the wire (#31)", function()
+    resetAll()
+    _makeSquare(6, 6, 0)
+    _makeSquare(20, 20, 0)
     DeadwireNetwork.registerTile(6, 6, 0, 1, "tin_can_tripline", "alice")
 
-    local mallory = _mockPlayer(200, 200, 0, "mallory")
+    -- Well inside the sanity bound, so only the entity check can reject this.
+    local mallory = _mockPlayer(20, 20, 0, "mallory")
 
     Events.OnClientCommand:Fire("Deadwire", "WireTriggered", mallory, {
         x = 6, y = 6, z = 0, wireType = "tin_can_tripline"
     })
 
-    assert_eq(#_destroyedWires, 0, "a distant client must not destroy a wire")
+    assert_eq(#_destroyedWires, 0, "an empty tile cannot have been tripped")
     assert_nil(_findServerCmd("WireDestroyed"))
     assert_nil(_findServerCmd("WireTriggered"))
 end)
 
-test("trigger report from a different floor is rejected (#15)", function()
+test("a zombie on a neighbouring tile is accepted (#31)", function()
+    resetAll()
+    _makeSquare(6, 6, 0)
+    _makeSquare(7, 7, 0)
+    _makeSquare(20, 20, 0)
+    DeadwireNetwork.registerTile(6, 6, 0, 1, "tin_can_tripline", "alice")
+    _mockZombie(7, 7, 0)   -- diagonal neighbour: absorbs a tick of position lag
+
+    local bob = _mockPlayer(20, 20, 0, "bob")
+
+    Events.OnClientCommand:Fire("Deadwire", "WireTriggered", bob, {
+        x = 6, y = 6, z = 0, wireType = "tin_can_tripline"
+    })
+
+    assert_eq(#_destroyedWires, 1, "the 3x3 must include diagonals")
+end)
+
+test("a zombie two tiles away is not close enough (#31)", function()
+    resetAll()
+    _makeSquare(6, 6, 0)
+    _makeSquare(8, 6, 0)
+    _makeSquare(20, 20, 0)
+    DeadwireNetwork.registerTile(6, 6, 0, 1, "tin_can_tripline", "alice")
+    _mockZombie(8, 6, 0)   -- one tile outside the 3x3
+
+    local bob = _mockPlayer(20, 20, 0, "bob")
+
+    Events.OnClientCommand:Fire("Deadwire", "WireTriggered", bob, {
+        x = 6, y = 6, z = 0, wireType = "tin_can_tripline"
+    })
+
+    assert_eq(#_destroyedWires, 0, "the scan is 3x3, not a general proximity check")
+end)
+
+test("a zombie on the floor above does not trip the wire below (#31)", function()
     resetAll()
     _makeSquare(6, 6, 0)
     _makeSquare(6, 6, 1)
+    _makeSquare(20, 20, 0)
     DeadwireNetwork.registerTile(6, 6, 0, 1, "tin_can_tripline", "alice")
+    _mockZombie(6, 6, 1)   -- directly above the wire
 
-    local mallory = _mockPlayer(6, 6, 1, "mallory")   -- directly above
+    local bob = _mockPlayer(20, 20, 0, "bob")
+
+    Events.OnClientCommand:Fire("Deadwire", "WireTriggered", bob, {
+        x = 6, y = 6, z = 0, wireType = "tin_can_tripline"
+    })
+
+    assert_eq(#_destroyedWires, 0, "z is an exact match, not part of the 3x3")
+end)
+
+test("reporter beyond the sanity bound is rejected even with a zombie there (#31)", function()
+    resetAll()
+    _makeSquare(6, 6, 0)
+    _makeSquare(600, 600, 0)
+    DeadwireNetwork.registerTile(6, 6, 0, 1, "tin_can_tripline", "alice")
+    _mockZombie(6, 6, 0)   -- the trip is real, but this reporter cannot know it
+
+    local mallory = _mockPlayer(600, 600, 0, "mallory")
 
     Events.OnClientCommand:Fire("Deadwire", "WireTriggered", mallory, {
         x = 6, y = 6, z = 0, wireType = "tin_can_tripline"
     })
 
-    assert_eq(#_destroyedWires, 0, "z must be an exact match, not a distance")
+    assert_eq(#_destroyedWires, 0, "594 tiles is past the 100-tile sanity bound")
 end)
 
-test("trigger report from an adjacent tile is accepted (#15)", function()
+test("camo is not degraded by a report with nothing near the wire (#31)", function()
     resetAll()
     _makeSquare(6, 6, 0)
-    _makeSquare(8, 7, 0)
-    DeadwireNetwork.registerTile(6, 6, 0, 1, "tin_can_tripline", "alice")
-
-    local player = _mockPlayer(8, 7, 0, "bob")   -- 2 tiles away, within range
-
-    Events.OnClientCommand:Fire("Deadwire", "WireTriggered", player, {
-        x = 6, y = 6, z = 0, wireType = "tin_can_tripline"
-    })
-
-    assert_eq(#_destroyedWires, 1, "a nearby player's report must still be honoured")
-end)
-
-test("camo is not degraded by a distant trigger report (#15)", function()
-    resetAll()
-    _makeSquare(6, 6, 0)
-    _makeSquare(200, 200, 0)
+    _makeSquare(20, 20, 0)
     DeadwireNetwork.registerTile(6, 6, 0, 1, "reinforced_tripline", "alice")
     DeadwireNetwork.setCamouflaged(6, 6, 0, true, 100)
     SandboxVars.Deadwire.CamoTriggerDegrade = 15
 
-    local mallory = _mockPlayer(200, 200, 0, "mallory")
+    local mallory = _mockPlayer(20, 20, 0, "mallory")
 
     Events.OnClientCommand:Fire("Deadwire", "WireTriggered", mallory, {
         x = 6, y = 6, z = 0, wireType = "reinforced_tripline"
     })
 
     assert_eq(DeadwireNetwork.getTile(6, 6, 0).camoDurability, 100,
-        "remote reports must not burn down camouflage")
+        "invented reports must not burn down camouflage")
 end)
 
 test("wire with camo (durability=100, degrade=15): durability reduced to 85, no WireCamouflaged", function()
@@ -497,6 +564,7 @@ test("wire with camo (durability=100, degrade=15): durability reduced to 85, no 
     DeadwireNetwork.registerTile(8, 8, 0, 1, "reinforced_tripline", "alice")
     DeadwireNetwork.setCamouflaged(8, 8, 0, true, 100)
     SandboxVars.Deadwire.CamoTriggerDegrade = 15
+    _mockZombie(8, 8, 0)   -- something is actually on the wire (#31)
 
     local player = _mockPlayer(8, 8, 0, "bob")
 
@@ -517,6 +585,7 @@ test("wire with camo at durability=10 (degrade=15 -> <=0): camo removed, WireCam
     DeadwireNetwork.registerTile(9, 9, 0, 1, "reinforced_tripline", "alice")
     DeadwireNetwork.setCamouflaged(9, 9, 0, true, 10)
     SandboxVars.Deadwire.CamoTriggerDegrade = 15
+    _mockZombie(9, 9, 0)   -- something is actually on the wire (#31)
 
     local player = _mockPlayer(9, 9, 0, "bob")
 
@@ -535,6 +604,47 @@ test("wire with camo at durability=10 (degrade=15 -> <=0): camo removed, WireCam
     assert_eq(camoCmd.args.x, 9)
     assert_eq(camoCmd.args.y, 9)
     assert_eq(camoCmd.args.z, 0)
+end)
+
+-----------------------------------------------------------------
+-- RequestWireSync tests (#33)
+--
+-- This replaces a hook on Events.OnPlayerConnect, which does not exist in
+-- 42.20.4 and threw at load in every run mode, so the join sync never ran once.
+-- 159 tests passed over it because the Events stub invented any name asked for.
+-----------------------------------------------------------------
+suite("ServerCommands: RequestWireSync")
+
+test("a joining client is answered with the wire list, addressed to them", function()
+    resetAll()
+    DeadwireWireManager.saveWire(3, 3, 0, 1, "tin_can_tripline", "alice")
+    DeadwireWireManager.saveWire(4, 4, 0, 2, "bell_tripline", "alice")
+
+    _makeSquare(50, 50, 0)
+    local bob = _mockPlayer(50, 50, 0, "bob")
+
+    Events.OnClientCommand:Fire("Deadwire", "RequestWireSync", bob, {})
+
+    local cmd = _findServerCmd("WireNetworkSync")
+    assert_not_nil(cmd, "the server must answer a sync request")
+    assert_eq(cmd.target, bob, "the reply goes to the requesting player, not everyone")
+    assert_eq(#cmd.args.wires, 2, "both saved wires should be sent")
+end)
+
+test("camouflage travels with the sync so a joining client hides the wire", function()
+    resetAll()
+    DeadwireWireManager.saveWire(3, 3, 0, 1, "tin_can_tripline", "alice")
+    DeadwireWireManager.saveCamo(3, 3, 0, true, 40)
+
+    _makeSquare(50, 50, 0)
+    local bob = _mockPlayer(50, 50, 0, "bob")
+
+    Events.OnClientCommand:Fire("Deadwire", "RequestWireSync", bob, {})
+
+    local cmd = _findServerCmd("WireNetworkSync")
+    assert_not_nil(cmd)
+    assert_true(cmd.args.wires[1].camouflaged, "camo state must reach the joining client (#34)")
+    assert_eq(cmd.args.wires[1].camoDurability, 40)
 end)
 
 -----------------------------------------------------------------

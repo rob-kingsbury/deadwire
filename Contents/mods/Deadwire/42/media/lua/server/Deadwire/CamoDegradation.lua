@@ -23,6 +23,7 @@
 
 require "Deadwire/Config"
 require "Deadwire/WireNetwork"
+require "Deadwire/WireManager"
 
 -----------------------------------------------------------
 -- Get current rain intensity (0.0 = dry, 1.0 = heaviest)
@@ -67,11 +68,13 @@ local function onEveryTenMinutes()
             table.insert(toRemove, { x = wire.x, y = wire.y, z = wire.z })
         else
             wire.camoDurability = newDur
+            DeadwireWireManager.saveCamo(wire.x, wire.y, wire.z, true, newDur)
         end
     end
 
     for _, pos in ipairs(toRemove) do
         DeadwireNetwork.setCamouflaged(pos.x, pos.y, pos.z, false, 0)
+        DeadwireWireManager.saveCamo(pos.x, pos.y, pos.z, false, 0)
         sendServerCommand(DeadwireConfig.MODULE, "WireCamouflaged", {
             x          = pos.x,
             y          = pos.y,

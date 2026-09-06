@@ -13,11 +13,49 @@ DeadwireServerCommands = DeadwireServerCommands or {}
 -- Command handler table
 local handlers = {}
 
--- How close the reporting player must be to a wire for the server to believe
--- their WireTriggered report. Detection is client-side by necessity
--- (OnZombieUpdate is a client event), so the claim cannot be eliminated --
--- only bounded to wires the reporter could plausibly see. Fixes #15.
-local TRIGGER_MAX_DIST = 3
+-- A WireTriggered report is a claim, not an observation. Detection has to run
+-- client-side (OnZombieUpdate is a client event), so any client can send this
+-- for any coordinates and the server must re-derive the fact for itself: is
+-- something actually standing on that wire right now.
+--
+-- What this replaces is #31. The old gate measured how far away the REPORTING
+-- player was, but the reporter is whichever client's OnZombieUpdate saw the
+-- zombie, and the zombie can be anywhere loaded. Trip lines therefore only
+-- fired when a player was already within 3 tiles of them, which is the mod's
+-- core feature not working.
+--
+-- 3x3 rather than the single tile: on a dedicated server the report is a tick
+-- or two behind where the entity has since moved to.
+local TRIGGER_SCAN_RADIUS = 1
+
+-- Loose bound on the reporter, defence in depth only. Nothing legitimate
+-- reports a wire on the far side of the loaded map. This is deliberately NOT
+-- a proximity check -- proximity is what was wrong before.
+local TRIGGER_SANITY_DIST = 100
+
+-- Is a zombie or a player on the wire square or one of its 8 neighbours?
+-- IsoGridSquare.getMovingObjects() is the live list, so this is the server's
+-- own reading of world state rather than the client's word for it.
+local function triggeringEntityNear(x, y, z)
+    local cell = getCell()
+    if not cell then return false end
+
+    for dx = -TRIGGER_SCAN_RADIUS, TRIGGER_SCAN_RADIUS do
+        for dy = -TRIGGER_SCAN_RADIUS, TRIGGER_SCAN_RADIUS do
+            local sq = cell:getGridSquare(x + dx, y + dy, z)
+            local movers = sq and sq:getMovingObjects()
+            if movers then
+                for i = 0, movers:size() - 1 do
+                    local o = movers:get(i)
+                    if o and (instanceof(o, "IsoZombie") or instanceof(o, "IsoPlayer")) then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
 
 -- DRY: validate args contain position fields
 local function hasPosition(args)
@@ -189,21 +227,29 @@ end
 handlers["WireTriggered"] = function(player, args)
     if not hasPosition(args) or not args.wireType then return end
 
-    -- The reporter must be standing near the wire they claim fired. Without
-    -- this any client can destroy every single-use wire on the map, and burn
-    -- every camouflage layer, by reporting arbitrary coordinates. Fixes #15.
+    -- Sanity bound on the reporter first, because it is one comparison and
+    -- rules out a client reporting coordinates it has no business knowing.
+    -- Floor is not checked here: a player on any floor can see a zombie on
+    -- another, and the wire's own floor is checked below.
     local psq = player:getSquare()
     if not psq
-        or psq:getZ() ~= args.z
-        or math.abs(psq:getX() - args.x) > TRIGGER_MAX_DIST
-        or math.abs(psq:getY() - args.y) > TRIGGER_MAX_DIST then
-        DeadwireConfig.debugLog("WireTriggered: rejected distant report from "
+        or math.abs(psq:getX() - args.x) > TRIGGER_SANITY_DIST
+        or math.abs(psq:getY() - args.y) > TRIGGER_SANITY_DIST then
+        DeadwireConfig.debugLog("WireTriggered: rejected out-of-range report from "
             .. (player:getUsername() or "SP"))
         return
     end
 
     local wire = DeadwireNetwork.getTile(args.x, args.y, args.z)
     if not wire then return end
+
+    -- The real gate: something has to actually be there. Costs 9 square
+    -- lookups and only runs once a wire is known to exist at those coords.
+    if not triggeringEntityNear(args.x, args.y, args.z) then
+        DeadwireConfig.debugLog("WireTriggered: nothing on or beside "
+            .. args.x .. "," .. args.y .. "," .. args.z .. ", report ignored")
+        return
+    end
 
     local wireType = wire.wireType
     local defaults = DeadwireConfig.WireDefaults[wireType]
@@ -236,18 +282,21 @@ handlers["WireTriggered"] = function(player, args)
         cooldownSeconds = DeadwireNetwork.setCooldown(args.x, args.y, args.z, cooldownSec)
     end
 
-    -- Degrade camo durability if camouflaged
+    -- Degrade camo durability if camouflaged. Both branches write through to
+    -- the save, or a reload restores camo the wire has already lost (#34).
     if wire.camouflaged then
         local degrade = DeadwireConfig.getSandbox("CamoTriggerDegrade", 15)
         local newDur = (wire.camoDurability or 0) - degrade
         if newDur <= 0 then
             DeadwireNetwork.setCamouflaged(args.x, args.y, args.z, false, 0)
+            DeadwireWireManager.saveCamo(args.x, args.y, args.z, false, 0)
             sendServerCommand(DeadwireConfig.MODULE, "WireCamouflaged", {
                 x = args.x, y = args.y, z = args.z,
                 camouflaged = false, durability = 0,
             })
         else
             wire.camoDurability = newDur
+            DeadwireWireManager.saveCamo(args.x, args.y, args.z, true, newDur)
         end
     end
 
@@ -291,6 +340,7 @@ handlers["CamouflageWire"] = function(player, args)
 
     local durability = DeadwireConfig.getSandbox("CamoMaxDurability", 100)
     DeadwireNetwork.setCamouflaged(args.x, args.y, args.z, true, durability)
+    DeadwireWireManager.saveCamo(args.x, args.y, args.z, true, durability)
 
     sendServerCommand(DeadwireConfig.MODULE, "WireCamouflaged", {
         x = args.x,
@@ -299,6 +349,31 @@ handlers["CamouflageWire"] = function(player, args)
         camouflaged = true,
         durability = durability,
     })
+end
+
+-----------------------------------------------------------
+-- RequestWireSync: a joining client asks for the wire list
+--
+-- Replaces the Events.OnPlayerConnect hook that never existed (#33). The
+-- client cannot be pushed to at a moment the server knows about, so it asks
+-- for itself from OnGameStart, and the answer goes to that player alone via
+-- the targeted overload sendServerCommand(IsoPlayer, String, String, table),
+-- which does exist in 42.20.4.
+--
+-- Nothing happens here in single player: sendServerCommand is a no-op off a
+-- dedicated server, and single player does not need it -- both halves of the
+-- mod share one tileIndex in memory.
+-----------------------------------------------------------
+
+handlers["RequestWireSync"] = function(player, args)
+    if not player then return end
+
+    local wireList = DeadwireWireManager.buildSyncPayload()
+    sendServerCommand(player, DeadwireConfig.MODULE, "WireNetworkSync", {
+        wires = wireList,
+    })
+    DeadwireConfig.log("WireNetworkSync: sent " .. #wireList .. " wires to "
+        .. (player:getUsername() or "SP"))
 end
 
 -----------------------------------------------------------

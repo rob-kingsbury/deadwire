@@ -16,6 +16,14 @@ function ISDeadwireTripLine:create(x, y, z, north, sprite)
     local sq = getWorld():getCell():getGridSquare(x, y, z)
     if not sq then return end
 
+    -- Both paths set self.character: ISBuildAction:perform in single player,
+    -- shared/ActionManager.lua in multiplayer. If neither did, say so rather
+    -- than erroring three lines down on a nil index.
+    if not self.character then
+        DeadwireConfig.log("BuildActions: create with no character, aborting")
+        return
+    end
+
     local wireType = self.wireType or DeadwireConfig.WireTypes.TIN_CAN
     local username = self.character:getUsername() or "SP"
     local networkId = DeadwireNetwork.generateNetworkId()
@@ -49,7 +57,21 @@ function ISDeadwireTripLine:create(x, y, z, north, sprite)
     })
 end
 
-function ISDeadwireTripLine:new(character, wireType)
+-- Argument order matters, and character MUST come last (#32).
+--
+-- In multiplayer ISBuildAction:perform returns before create(). The server
+-- rebuilds this object from scratch in zombie.core.BuildAction.parse, which
+-- harvests values from the client instance BY PARAMETER NAME and calls
+-- <Type>:new(...) positionally. Only String, Double, Boolean, table,
+-- InventoryItem, IsoDirections and IsoDeadBody survive that trip; an IsoPlayer
+-- is silently dropped. With character first, the server was calling
+-- new("tin_can_tripline") -- character got the string, wireType went nil, every
+-- wire defaulted to tin can and getPlayerNum() threw on a string.
+--
+-- Vanilla's own convention says the same thing: ISLightSource:new(sprite,
+-- northSprite, character) and ISNaturalFloor:new(sprite, northSprite, item,
+-- character) both put character last and tolerate nil.
+function ISDeadwireTripLine:new(wireType, character)
     local o = {}
     setmetatable(o, self)
     self.__index = self
@@ -62,8 +84,11 @@ function ISDeadwireTripLine:new(character, wireType)
     o:setSprite(sprites and sprites.east or fallback)
     o:setNorthSprite(sprites and sprites.north or fallback)
 
+    -- character is nil on the server's rebuild; ActionManager sets it before
+    -- create() runs. Note the server also assigns an IsoPlayer to o.player in
+    -- parse, so never treat self.player as a number outside this function.
     o.character = character
-    o.player = character:getPlayerNum()
+    o.player = character and character:getPlayerNum() or 0
     o.wireType = wt
     o.name = "Trip Wire"
     o.canBeAlwaysPlaced = true

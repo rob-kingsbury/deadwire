@@ -144,7 +144,21 @@ function DeadwireWireManager.saveWire(x, y, z, networkId, wireType, ownerId)
         networkId = networkId,
         wireType = wireType,
         ownerId = ownerId,
+        camouflaged = false,
+        camoDurability = 0,
     }
+end
+
+-- Camouflage lives in two places: the live WireNetwork entry, and the saved
+-- entry here. Only the first was ever written, so every save and reload -- and
+-- every dedicated server restart -- silently stripped camo from every wire
+-- (#34). Call this after any change to either camo field.
+function DeadwireWireManager.saveCamo(x, y, z, camouflaged, durability)
+    local saved = ModData.getOrCreate(SAVE_KEY)
+    local entry = saved[DeadwireNetwork.tileKey(x, y, z)]
+    if not entry then return end
+    entry.camouflaged = camouflaged and true or false
+    entry.camoDurability = durability or 0
 end
 
 function DeadwireWireManager.removeSavedWire(x, y, z)
@@ -172,6 +186,13 @@ function DeadwireWireManager.loadAll()
                 wire.x, wire.y, wire.z,
                 wire.networkId, wire.wireType, wire.ownerId
             )
+            -- registerTile always starts a tile uncamouflaged, so camo has to
+            -- be reapplied here or it is lost on every load (#34).
+            if wire.camouflaged then
+                DeadwireNetwork.setCamouflaged(
+                    wire.x, wire.y, wire.z, true, wire.camoDurability or 0
+                )
+            end
             if wire.networkId > maxNetworkId then
                 maxNetworkId = wire.networkId
             end
@@ -220,39 +241,39 @@ local function onLoadGridsquare(sq)
 end
 
 -----------------------------------------------------------
--- Resync on player connect: send full wire list to the
--- joining client so their local WireNetwork is populated.
--- Fixes the critical bug: owner can't remove own wire after
--- reconnecting because client WireNetwork was empty.
+-- Join sync payload: every saved wire, for a client whose
+-- local WireNetwork is empty. Without it a joining player's
+-- detection ignores existing wires and the context menu
+-- never offers Remove on their own wire.
 --
--- Broadcast approach: sendServerCommand(module, command, args) goes to all clients.
--- registerTile is idempotent so existing clients safely re-register their wires
--- without duplicates. This avoids the unverified targeted 4-arg overload.
+-- There is no event hook here on purpose. This used to hang off
+-- Events.OnPlayerConnect, which does not exist in 42.20.4 -- the name is in
+-- none of the jar's classes and is absent from LuaEventManager's registry, so
+-- it threw at load in every run mode and the sync never ran once (#33). The
+-- client now asks: OnGameStart sends RequestWireSync, and the handler in
+-- ServerCommands answers this list to that one player.
 -----------------------------------------------------------
 
-local function onPlayerConnect(player)
+function DeadwireWireManager.buildSyncPayload()
     local saved = ModData.getOrCreate(SAVE_KEY)
     local wireList = {}
     for key, wire in pairs(saved) do
         if wire.x and wire.y and wire.z and wire.networkId and wire.wireType then
             table.insert(wireList, {
-                x         = wire.x,
-                y         = wire.y,
-                z         = wire.z,
-                networkId = wire.networkId,
-                wireType  = wire.wireType,
-                ownerId   = wire.ownerId,
+                x              = wire.x,
+                y              = wire.y,
+                z              = wire.z,
+                networkId      = wire.networkId,
+                wireType       = wire.wireType,
+                ownerId        = wire.ownerId,
+                camouflaged    = wire.camouflaged and true or false,
+                camoDurability = wire.camoDurability or 0,
             })
         end
     end
-    sendServerCommand(DeadwireConfig.MODULE, "WireNetworkSync", {
-        wires = wireList,
-    })
-    DeadwireConfig.log("WireNetworkSync: broadcast " .. #wireList
-        .. " wires (triggered by " .. (player:getUsername() or "?") .. " connect)")
+    return wireList
 end
 
 Events.OnInitGlobalModData.Add(onInitGlobalModData)
 Events.LoadGridsquare.Add(onLoadGridsquare)
-Events.OnPlayerConnect.Add(onPlayerConnect)
 DeadwireConfig.log("WireManager initialized (server)")

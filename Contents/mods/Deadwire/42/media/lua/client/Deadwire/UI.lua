@@ -32,7 +32,9 @@ end
 -----------------------------------------------------------
 
 local function onPlaceWire(worldObjects, character, wireType)
-    local tripLine = ISDeadwireTripLine:new(character, wireType)
+    -- wireType first, character last: the server drops non-serializable
+    -- arguments when it rebuilds this in MP. See BuildActions.lua (#32).
+    local tripLine = ISDeadwireTripLine:new(wireType, character)
     getCell():setDrag(tripLine, character:getPlayerNum())
 end
 
