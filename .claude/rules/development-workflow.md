@@ -61,9 +61,10 @@ Short description of change
 - Detail 2
 
 Fixes #123
-
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 ```
+
+**No trailers.** No `Co-Authored-By`, no tool attribution, no emoji, in any
+commit or PR on this project. The harness default adds one; this overrides it.
 
 ### Auto-Close Issues in Commits
 

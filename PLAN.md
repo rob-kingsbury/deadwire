@@ -2,139 +2,134 @@
 
 Living plan document. The pz-tilesheet build and the 0.1.0 to 0.1.1 version bump
 that used to fill this file are both finished; the `.pack` and `.tiles.txt`
-format specs that were written up here now live in `../pz-tilesheet/README.md`,
-which is the tool's own repo and the right place for them.
+format specs it carried now live in `../pz-tilesheet/README.md`.
 
 ---
 
-## Session 20: full code review before Phase 2 (#30)
+## Session 21: execute the #30 review findings
 
-### What we are actually doing
+The review is done and closed. Fourteen findings, eleven confirmed against the
+42.20.4 jar, filed as #31 to #43. The whole report is `docs/REVIEW-30.md` and is
+the source of truth for detail; this file is the order to do them in.
 
-Two passes over the same 2,136 lines of Lua. Fable hunts for bugs and writes the
-fix plan. Opus executes it. Nothing new gets built until the existing code is
-believed.
+### Run-mode facts. Read these before touching any file.
 
-The reason this is worth a whole session: Session 16 found six silent failures,
-Session 17 found eleven, Session 18 found three more. None of them threw an
-error. Every one of them was a thing that looked correct, ran without complaint,
-and did nothing. That rate has not yet flattened out, which is the only evidence
-that matters for whether another pass will pay.
+Established during the review by reading bytecode. Several findings only make
+sense with them, and none of them were written down anywhere before.
 
-### The code under review
+1. **A game client runs `shared/`, `client/` AND `server/` Lua.** `GameWindow`
+   loads shared and client at boot; `GameLoadingState` loads `server` whenever a
+   world loads, single player or multiplayer. Every `server/` file in this mod,
+   including its event registrations, runs on multiplayer clients.
+2. **A dedicated server runs `shared/` and `server/` only.** It checksums
+   `client/` without executing it. No `client/` code of ours can ever run there.
+3. **`sendServerCommand` does nothing except on a real dedicated server.** In
+   single player and on multiplayer clients it returns immediately. Everything in
+   `client/EventHandlers.lua` is dead in single player; the mod works there only
+   because both halves share one `tileIndex` in memory.
+4. **`sendClientCommand` in single player is asynchronous**, arriving on the next
+   net pass, not the same frame.
+5. **In multiplayer the server rebuilds the build object from scratch**, calling
+   `<Type>:new(...)` with fields harvested by parameter name. Only String,
+   Double, Boolean, table, InventoryItem, IsoDirections and IsoDeadBody survive
+   the trip. An IsoPlayer argument is silently dropped.
 
-| File | Lines | Runs on |
-|---|---|---|
-| `server/ServerCommands.lua` | 366 | server |
-| `shared/WireNetwork.lua` | 259 | both |
-| `server/WireManager.lua` | 258 | server |
-| `client/TriggerHandlers.lua` | 198 | client |
-| `shared/Config.lua` | 196 | both |
-| `client/EventHandlers.lua` | 174 | client |
-| `client/Detection.lua` | 128 | client |
-| `client/UI.lua` | 127 | client |
-| `client/CamoVisibility.lua` | 111 | client |
-| `server/CamoDegradation.lua` | 93 | server |
-| `server/BuildActions.lua` | 89 | server |
-| `server/LootDistribution.lua` | 81 | server |
-| `client/ClientCommands.lua` | 56 | client |
+### Order of work
 
-Plus the data files that are just as capable of failing silently:
-`deadwire_items.txt`, `deadwire_recipes.txt`, `deadwire_sounds.txt`,
-`sandbox-options.txt`, and the four JSON files under `Translate/EN/`.
+Fix the four that break the mod first, run the gates, then stop and show Rob
+before the scope calls.
 
-### Expected behaviour, so the review has something to check against
+**Group 1, the mod does not work.**
 
-This is the spec. Where the code disagrees with this list, one of the two is
-wrong and the review says which.
+1. **#31** `server/ServerCommands.lua` — replace the reporter-distance gate with
+   an entity-on-or-beside-the-tile check (3x3, `getMovingObjects`), keep a
+   100-tile sanity bound on the reporter. Rewrite the four tests at
+   `tests/test_server_commands.lua:429-490` that currently assert the bug.
+2. **#32** `server/BuildActions.lua`, `client/UI.lua:35` —
+   `new(wireType, character)` with character last and optional.
+3. **#33** `server/WireManager.lua`, `server/ServerCommands.lua`,
+   `client/EventHandlers.lua` — drop `OnPlayerConnect`; client-only `OnGameStart`
+   sends `RequestWireSync`; server replies with the targeted `sendServerCommand`
+   overload; the sync handler does the per-wire object lookup.
+4. **#34** `server/WireManager.lua`, `shared/WireNetwork.lua` — persist and sync
+   `camouflaged` and `camoDurability`; update all three flag-flip sites.
 
-**Tin can trip line (tier 0).** Health 50, spans up to 4 tiles, breaks when
-triggered. Makes a rattle audible to zombies within 25 tiles at volume 60. The
-break-on-trigger behaviour is the one property a server owner can turn off
-(`TinCanBreakOnTrigger`), and health is settable (`TripLineHealth`).
+Run `run_tests.bat` (from PowerShell, not Git Bash), `verify_names.py` and
+`validate_pack.py`, sync to the mods folder, commit, and report before Group 2.
 
-**Reinforced trip line (tier 1).** Health 150 (settable via
-`ReinforcedHealth`), spans up to 8, survives being triggered, 36 real seconds of
-cooldown before it can fire again, sound radius 40 at volume 80.
+**Group 2, correctness that does not stop the mod running.**
 
-**Bell trip line (tier 1).** Same as reinforced except sound radius 60 and a
-different clip. No health sandbox option on purpose. Right now it is otherwise
-stat-identical to reinforced, which is #27 and is a balance decision Rob owes us,
-not a bug.
+5. **#35** run-mode guards — `isClient()` early return in `CamoDegradation`,
+   guard `WireManager.onInitGlobalModData`, move the alpha and outline reset into
+   `WireNetwork.setCamouflaged`, fix the two wrong single-player comments.
+6. **#37** explicit `cooldownSeconds` per wire type, drop the `or 36`.
+7. **#41** two-key dedup in `Detection`; self-heal object lookup in
+   `CamoVisibility`.
+8. **#39** delete `FALLBACK_SPRITE`, make `getSprite` log and return nil.
 
-**Tanglefoot (tier 1).** Health 100, occupies one tile, 40 percent chance to trip
-whatever walks in, 3 seconds prone. No sound.
+**Group 3, scope calls. Show Rob before doing these.**
 
-**Cooldowns are real seconds** measured with `os.time`, and they broadcast as a
-duration rather than an absolute time, because two machines' clocks do not agree.
+9. **#36** deletes the `PlaceWire` handler and its wrapper outright, and adds
+   owner and proximity gates to `CamouflageWire` and `RemoveWire`.
+10. **#38** is a decision, not a patch: wire health, `maxSpan` and
+    `proneDuration` are declared and read by nothing. Either the text comes down
+    to what ships, or the behaviour gets built.
+11. **#40** and **#43** widen `verify_names.py` and make `tests/stubs.lua` stop
+    inventing event names, then delete the dead `.tiles.txt`.
+12. **#39**'s orphan sandbox labels and **#42**'s missing camouflage UI.
 
-**Camouflage** hides a wire from anyone who is not its owner or in the owner's
-group, degrades in rain, and its visibility check keys off the Foraging perk
-(`Perks.PlantScavenging` internally).
+Finish by writing the five run-mode facts into `.claude/context.md` so the next
+session does not re-derive them.
+
+### What actually ships today, corrected
+
+The version of this list in the previous draft of PLAN.md was wrong in two
+places, and the review caught it. `maxSpan` and `proneDuration` are read by no
+code at all.
+
+**Tin can trip line (tier 0).** Health 50 (`TripLineHealth`), breaks when
+triggered (`TinCanBreakOnTrigger`), rattle audible to zombies within 25 tiles at
+volume 60. Span is not enforced.
+
+**Reinforced trip line (tier 1).** Health 150 (`ReinforcedHealth`), survives
+triggering, 36 real seconds of cooldown, sound radius 40 at volume 80. Span is
+not enforced.
+
+**Bell trip line (tier 1).** Same as reinforced but sound radius 60 and a
+different clip. No health sandbox option on purpose. Otherwise stat-identical to
+reinforced, which is #27, a balance decision Rob owes us and not a bug.
+
+**Tanglefoot (tier 1).** One tile, 40 percent chance to trip, `knockDown(false)`
+with vanilla get-up timing. No sound. Health 100 is declared and never reduced.
+Currently inherits a 36-second cooldown it should not have (#37).
+
+**Wire health is inert.** `setIsThumpable(false)` removes the zombie-thump path
+and nothing else reduces health, so no wire can be destroyed by a zombie despite
+the sandbox tooltip saying otherwise (#38).
+
+**Camouflage is unreachable.** No UI calls it (#42).
+
+**Cooldowns are real seconds** via `os.time`, broadcast as a duration rather than
+an absolute time because two machines' clocks do not agree.
 
 **Everything authoritative happens server-side.** Client detects and asks, server
-validates and decides, server broadcasts, clients play the sound. A client that
-lies gets refused.
+validates, server broadcasts, clients play the sound. Three handlers currently
+trust the client more than they should (#36).
 
-### What the hunt is looking for, in priority order
+### What no amount of reading will settle
 
-1. **Guards that are never true, or always true.** The `isServer()` bug is the
-   template: a single-player game has `isServer()` and `isClient()` both false, so
-   `if not isServer() then return end` disabled loot for the life of the mod
-   without one line of log output. Every early-return in the codebase gets asked
-   the same question: under which of the three run modes (single player, hosted
-   client, dedicated server) is this branch taken?
-2. **Names that do not resolve.** `python scripts/verify_names.py` covers 109 of
-   them and is the only checker in this repo that has ever caught anything. The
-   hunt's job is to find the references it does not cover yet, and to widen it.
-3. **Settings that nothing reads.** Four sandbox options were found in Session 17
-   being offered to server owners while no code looked at them. Every option in
-   `sandbox-options.txt` needs a reader.
-4. **Two things that agree with each other and nothing else.** The crafting
-   category prefix was wrong in exactly two places, and those two places were the
-   mod and the checker written to verify the mod. Any value that appears twice
-   and is verified nowhere is the same shape.
-5. **Client authority leaks.** Two multiplayer exploits were fixed in Session 17.
-   Assume there are more; check every `OnClientCommand` argument for whether the
-   server re-derives it or trusts it.
-6. **The `WireNetwork` graph walk at perimeter scale.** It is the foundation for
-   the fence electrification idea, and nobody has looked at what it costs on a
-   long run of wire.
+Sounds being audible and attenuating, camouflage actually hiding a wire, rain
+degrading it, and what happens when a zombie walks into a wire. That is the
+remainder of #25 and needs someone in a running game with PZ Test Pilot.
 
-### Two loose ends the survey turned up
+Also newly on that list: the whole `createWire` path has never been walked
+through, because Session 18 placed raw `IsoObject`s rather than the mod's
+`IsoThumpable`. And a wire beside a door may still reproduce #8, because
+`ISBuildAction:perform` calls `RecalcAllWithNeighbours(true)` right after
+`create()`, which makes the premise of the comment at `WireManager.lua:68-73`
+false in single player.
 
-- `media/` ships both `deadwire_01.tiles` (120 bytes) and
-  `deadwire_01.tiles.txt` (981 bytes), and they are not the same file. `mod.info`
-  says `tiledef=deadwire_01 200`. Only one of these can be the one PZ reads.
-  Find out which, delete the other.
-- `DeadwireConfig.FALLBACK_SPRITE = "construction_01_24"` is a metal wall frame
-  standing in for a missing sprite. All ten real sprites now exist and are
-  verified in-game, so this may be a guard with nothing left to guard.
-
-### The oracles
-
-Use the sibling projects, not general Lua advice.
-
-- `../unbreaker` and `../pz-head-for-the-hills` are our own shipped B42 mods.
-- `../pz-test-pilot` is the live harness, for anything that needs a running game.
-- `../pz-tilesheet` for sprite and tiledef questions.
-- **Do not trust `../pz-mod-checker`.** It reported this repo clean before and
-  after the Session 16 audit and caught none of the six failures found that day,
-  nor the eleven from Session 17. A clean result from it is not evidence.
-
-### Done means
-
-- Every finding is either fixed, or filed as an issue with the evidence in it.
-- `run_tests.bat` still passes (159 at the start of the session).
-- `python scripts/verify_names.py` still exits 0, and covers more than 109
-  references than it did at the start if the hunt found a gap.
-- `python tools/validate_pack.py` still passes its 130 checks.
-- The mod is synced to `C:/Users/roban/Zomboid/mods/Deadwire/`.
-
-### What this session cannot settle
-
-Sounds actually being audible, camouflage actually being invisible, rain actually
-degrading it, and a zombie actually walking into a wire. Those are the remainder
-of #25 and they need someone sitting in a running game. Multiplayer cooldowns
-cannot be tested in single player at all. The review can prove the code is
-*capable* of being right; only the harness proves it *is*.
+Multiplayer cannot be tested in single player at all: #32's rebuild, #33's join
+sync, #34's camo after restart, and whether a client-side `addSound` attracts
+server-simulated zombies in B42 MP. If it does not, the server should call
+`addSound` itself when it accepts a trigger.

@@ -11,5 +11,17 @@
       "WebFetch(domain:pzwiki.net)",
       "WebFetch(domain:theindiestone.com)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/context-prune.cjs"
+          }
+        ]
+      }
+    ]
   }
 }
