@@ -104,6 +104,13 @@ const GH_BIN = process.env.PRUNE_GH_BIN || 'gh';
  * Walks back to the most recent real user prompt and looks for a Write or Edit
  * naming the file. A read does not count: reading the handoff is not what makes
  * it long.
+ *
+ * Aikido SAST flags the readFileSync below as a file-inclusion risk. It is not.
+ * `transcriptPath` arrives in Claude Code's own hook payload on stdin, not from
+ * a user or the network, and the contents are scanned for tool_use entries and
+ * discarded: nothing is emitted, evaluated or returned. The rule is matching the
+ * shape `readFileSync(<variable>)`. Sembr's handoff-staleness-blocker carries the
+ * identical line for the identical reason.
  */
 function turnWroteContext(transcriptPath) {
     if (!transcriptPath || !fs.existsSync(transcriptPath)) return false;
