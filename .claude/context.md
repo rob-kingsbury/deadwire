@@ -3,14 +3,14 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 18
-last_updated: 2026-08-06
-continue_with: "#26 — regenerate 3 sprites with shorter stakes. Exact prompts are in tools/process_sprite_render.py. Then the rest of #25 (sounds, camo, rain, triggers)."
-blockers: "None hard. #26 is cosmetic and well-scoped; #25's remaining steps need someone willing to sit in-game."
+last_session: 19
+last_updated: 2026-09-06
+continue_with: "#30 — full code review in a fresh window, using the sibling projects as the oracle. Then the rest of #25 (sounds, camo, rain, triggers)."
+blockers: "None hard. All art is done and shipped. #25's remaining steps need someone willing to sit in-game."
 
 tech:
   stack: pz-lua-mod
-  tools: [Lua 5.1 (Kahlua2), Project Zomboid B42.20.2, Git, GitHub]
+  tools: [Lua 5.1 (Kahlua2), Project Zomboid B42.20.4, Git, GitHub]
 
 paths:
   mod_root: Contents/mods/Deadwire/42/
@@ -30,22 +30,19 @@ workflow:
 ## To Resume
 
 ```
-Deadwire v0.1.1, Session 19. Start from origin/main (git pull).
+Deadwire v0.1.1, Session 20. Start from origin/main (git pull).
 
-Session 18 was the first time this mod has EVER been confirmed running in a
-game. Most of Phase 1 now has in-game evidence behind it. Three real bugs were
-found and fixed in the process, one of which had silently disabled loot for
-every single-player game since the mod was written.
+All art is finished. Ten world sprites and five inventory icons are shipped,
+stake heights are consistent, and the sounds are converted and in place. There
+is no art work left in this repo.
 
-THIS WINDOW: #26. Three sprites (tincan, bell, reinforced) have stakes that are
-2-5x too tall and read as fences instead of trip lines. tanglefoot and electric
-are already correct and serve as the height reference. The full working Gemini
-prompt, the failure each phrase prevents, and the fix are all in the docstring
-of tools/process_sprite_render.py. This is a 20-minute job, not a redesign.
+THIS WINDOW: #30, a full code review in a fresh window, against the sibling
+projects rather than general Lua advice. Read that issue; it lists what to
+check and, more importantly, which tool NOT to trust.
 
-THEN: the rest of #25 — sounds, camo visibility, rain degradation, and actual
-trigger behaviour with a zombie. Those need the real build path, not the raw
-sprite placement used in Session 18.
+THEN: the rest of #25 — sounds actually playing, camo visibility, rain
+degradation, and real trigger behaviour with a zombie. Those need the mod's own
+build path, not the raw sprite placement used in Session 18.
 
   cd c:/xampp/htdocs/pz-test-pilot
   python scripts/cmd.py get_status
@@ -148,15 +145,27 @@ Session 18 moved reinforced/tanglefoot/tincan from 2,4,6 to 4,6,8.
 4/5 reinforced   6/7 tanglefoot   8/9 tincan
 ```
 
-Post height above the ground line — the open item on #26:
+Stake height above the ground line, after the Session 19 replacement:
 
-| sprite | above ground | verdict |
-|---|---|---|
-| tanglefoot | 6px | correct |
-| electric | 8px | correct |
-| tincan | 22px | too tall |
-| bell | 30px | too tall |
-| reinforced | 32px | too tall |
+| sprite | above ground |
+|---|---|
+| tincan, bell, reinforced, electric | 18px |
+| tanglefoot | 6px |
+
+Previously these ranged 22 to 32 and the tall ones read as fences rather than
+trip lines.
+
+**At 32px, silhouette contrast beats object identity.** An icon pass that shrank
+the pale wire coil to enlarge the cans produced a brown blob on a dark
+inventory panel. The coil is not filler, it is the high-contrast shape that
+makes the item findable in a list. Tanglefoot is the clearest case the other
+way: it reads instantly at 1x purely because the whole coil is rust-coloured.
+
+**A local ComfyUI pipeline was built and abandoned.** SDXL with a pixel-art
+LoRA holds composition once the hanging objects are drawn into the ControlNet
+skeleton, but it renders thin and washed out at this scale and lost every
+comparison against the existing art. The models are installed at C:/ai/ComfyUI
+if anyone wants them; the generation half is not worth rebuilding.
 
 ## Name verification: run the script, do not check by hand
 
@@ -256,11 +265,12 @@ client → server. Cooldowns are **real seconds** (`os.time`), broadcast as a
 
 | # | Title | State |
 |---|-------|-------|
-| 26 | Sprite stake height on 3 of 5 types | **Next** — prompts written, 20 min |
+| 30 | Full code review before Phase 2 | **Next** — fresh window, see the issue |
+| 29 | Owner/group see an outline on their own wires | Mostly built already in CamoVisibility |
 | 25 | In-game smoke test | Partially done; sounds/camo/rain/triggers remain |
 | 27 | Tier 1 balance: Bell health, Reinforced/Bell identical | Needs Rob |
 | 28 | Delete stale repo-root mod.info | Needs Rob |
-| 13 | Tier 3 electrified wire | Phase 3 — mechanic decided, art banked |
+| 13 | Tier 3 electrified wire | Phase 3 — stagger+knockdown decided, art and sound banked, no power model |
 | 12 | Loot for metalworking rooms | **Injection confirmed 11/11**; needs a real container sighting to close |
 
 ## Recent sessions
@@ -282,6 +292,25 @@ specific failure. Stake height on 3 of 5 remains (#26).
 Ten inert test `IsoObject`s were left in a throwaway test world at
 x=1914-1922, y=14379/14381 — the game was closed before they could be removed.
 Harmless, and irrelevant unless that save is reused.
+
+### Session 19 (2026-09-05/06): all art finished, sounds converted
+
+Ten world sprites and five inventory icons replaced. Stake heights now
+consistent at 18px, or 6px for tanglefoot, where they had ranged 22 to 32.
+
+Sounds: Rob's new bell and tin can takes arrived as Ogg **Opus stereo**, two
+silent-failure conditions stacked, since FMOD does not decode Opus in an .ogg
+container and stereo breaks 3D positional audio. Converted to Vorbis mono
+44.1k. An electric zap is banked for #13.
+
+Filed #29 (owner/group wire outline, mostly already built inside
+CamoVisibility) and #30 (full code review).
+
+Verified the jar had been updated to 42.20.4 on 2026-08-27, three weeks after
+the name checker was written. All 109 references still resolve.
+
+Also checked and dismissed: our sound scripts declare no `distanceMin`, and
+neither does vanilla, in 0 of the 69 files that use `distanceMax`.
 
 ### Session 17 (2026-08-05/06): eleven silent failures, six PRs
 
