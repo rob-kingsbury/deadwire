@@ -49,10 +49,11 @@ ACC_ENUM = 0x4000
 
 
 class ClassFile:
-    def __init__(self, pool, fields, methods):
+    def __init__(self, pool, fields, methods, super_name=None):
         self.pool = pool          # index -> str for UTF8 entries, else None
         self.fields = fields      # list of (name, descriptor, access_flags)
         self.methods = methods    # list of (name, descriptor, access_flags)
+        self.super_name = super_name   # e.g. 'zombie/iso/objects/IsoObject'
 
     def field_names(self, static_only=False):
         return {n for n, _d, f in self.fields
@@ -77,14 +78,44 @@ class ClassFile:
     def method_names(self):
         return {n for n, _d, _f in self.methods}
 
+    def method_arities(self):
+        """name -> set of argument counts, self excluded.
+
+        Java overloads share a name, so a call is valid if ANY overload takes
+        that many arguments. Descriptors are parsed rather than counted by
+        comma: `(Ljava/lang/String;IZ)V` is three arguments, not one.
+        """
+        out = {}
+        for name, desc, _f in self.methods:
+            out.setdefault(name, set()).add(_descriptor_arity(desc))
+        return out
+
+
+def _descriptor_arity(desc):
+    """Number of parameters in a JVM method descriptor."""
+    args = desc[desc.index("(") + 1:desc.rindex(")")]
+    n, i = 0, 0
+    while i < len(args):
+        while args[i] == "[":
+            i += 1
+        if args[i] == "L":
+            i = args.index(";", i) + 1
+        else:
+            i += 1
+        n += 1
+    return n
+
 
 def _read_pool(data, off):
     count = struct.unpack_from(">H", data, off)[0]
     off += 2
     pool = [None] * count
+    class_refs = {}          # pool index of a CONSTANT_Class -> its name index
     i = 1
     while i < count:
         tag = data[off]
+        if tag == _TAG_CLASS:
+            class_refs[i] = struct.unpack_from(">H", data, off + 1)[0]
         off += 1
         if tag == _TAG_UTF8:
             length = struct.unpack_from(">H", data, off)[0]
@@ -98,7 +129,7 @@ def _read_pool(data, off):
             off += width
         # long and double occupy two pool slots (JVMS 4.4.5)
         i += 2 if tag in (_TAG_LONG, _TAG_DOUBLE) else 1
-    return pool, off
+    return pool, class_refs, off
 
 
 def _read_members(data, off, pool):
@@ -119,13 +150,16 @@ def parse(data):
     if data[:4] != b"\xca\xfe\xba\xbe":
         raise ValueError("not a class file")
     off = 8                                   # magic + minor + major
-    pool, off = _read_pool(data, off)
-    off += 6                                  # access_flags, this_class, super_class
+    pool, class_refs, off = _read_pool(data, off)
+    _access, _this, super_i = struct.unpack_from(">HHH", data, off)
+    off += 6
+    # super_class is 0 only for java/lang/Object itself.
+    super_name = pool[class_refs[super_i]] if super_i in class_refs else None
     iface_count = struct.unpack_from(">H", data, off)[0]
     off += 2 + iface_count * 2
     fields, off = _read_members(data, off, pool)
     methods, off = _read_members(data, off, pool)
-    return ClassFile(pool, fields, methods)
+    return ClassFile(pool, fields, methods, super_name)
 
 
 class Jar:
@@ -150,3 +184,27 @@ class Jar:
 
     def class_paths(self):
         return [n[:-6] for n in self._zip.namelist() if n.endswith(".class")]
+
+    def chain(self, path):
+        """The class and every superclass of it that is inside the jar.
+
+        Method lookup has to walk this. IsoThumpable declares setIsThumpable
+        but inherits getModData, setAlphaAndTarget and getSquare from IsoObject,
+        so asking IsoThumpable alone would report real methods as missing --
+        a checker that cries wolf stops being read.
+        """
+        out = []
+        seen = set()
+        while path and path not in seen and self.has_class(path):
+            seen.add(path)
+            out.append(self.klass(path))
+            path = out[-1].super_name
+        return out
+
+    def methods_deep(self, path):
+        """name -> set of valid argument counts, across the whole chain."""
+        merged = {}
+        for k in self.chain(path):
+            for name, arities in k.method_arities().items():
+                merged.setdefault(name, set()).update(arities)
+        return merged

@@ -7,7 +7,7 @@ Usage:
 Creates:
     output/texturepacks/NAME.pack   (V2 binary atlas)
     output/NAME.tiles               (binary tile definitions)
-    output/NAME.tiles.txt           (human-readable tile definitions)
+    output/NAME.tiles.txt           (human-readable; the game never reads it)
 """
 
 import argparse
@@ -164,14 +164,23 @@ def get_tile_props(tile_props, sprite_name):
     return props
 
 
-def write_tiles_txt(out_dir, name, tileset_id, entries, cols, rows, tile_props=None):
-    """Write a human-readable .tiles.txt file."""
+def write_tiles_txt(out_dir, name, tileset_number, entries, cols, rows, tile_props=None):
+    """Write a human-readable .tiles.txt file.
+
+    For reading only. The game never opens it: ZomboidFileSystem.loadModTileDefs
+    builds media/<name>.tiles and the string ".tiles.txt" appears in no class in
+    the jar. Do not ship it into a mod's media/ directory and do not verify
+    anything against it -- it and the binary are written from the same inputs
+    here, so they agree by construction and checking one proves nothing about
+    the other.
+    """
     tiles_path = os.path.join(out_dir, f"{name}.tiles.txt")
 
-    lines = ["version = 1", "tileset", "{"]
+    lines = ["// The game ignores this file. media/<name>.tiles is the one it loads.",
+             "version = 1", "tileset", "{"]
     lines.append(f"    file = {name}")
     lines.append(f"    size = {cols},{rows}")
-    lines.append(f"    id = {tileset_id}")
+    lines.append(f"    id = {tileset_number}")
 
     for entry in entries:
         sprite_name = f"{name}_{entry['index']}"
@@ -198,13 +207,31 @@ def write_tiles_txt(out_dir, name, tileset_id, entries, cols, rows, tile_props=N
     return tiles_path
 
 
-def write_tiles_bin(out_dir, name, tileset_id, entries, cols, rows, tile_props=None):
+# What the fifth per-tileset field is, and what it is not.
+#
+# IsoWorld.LoadTileDefinitions reads it and rejects anything outside 1..512
+# ("invalid tileset number %d, must be from 1 to %d"), where the limit is 512
+# unless the tiledef fileNumber is exactly 1. It is the tileset's index within
+# this file. It is NOT the mod.info tiledef id -- that is passed separately as
+# fileNumber and its useful range is 100..8190.
+#
+# This tool used to write --id here. Anything above 512 makes the game refuse
+# the whole file and every world sprite silently disappears, so following the
+# old README's "ID must match" while picking a high id to dodge a collision
+# broke the mod in the least debuggable way available. All seven vanilla .tiles
+# files number their tilesets from 1.
+TILESET_NUMBER = 1
+
+
+def write_tiles_bin(out_dir, name, tileset_number, entries, cols, rows, tile_props=None):
     """Write a compiled binary .tiles file (tdef format).
 
-    Binary format (verified against vanilla + workshop mods):
+    Binary format (verified against all seven vanilla .tiles files and against
+    the bytecode of IsoWorld.LoadTileDefinitions in 42.20.4):
       "tdef" magic | version u32 | num_tilesets u32
       Per tileset:
-        name\\n | name.png\\n | cols u32 | rows u32 | id u32 | total_tiles u32
+        name\\n | name.png\\n | cols u32 | rows u32
+        tileset_number u32 | total_tiles u32
         Per tile: num_props u32 | (key\\n value\\n) * num_props
     """
     tiles_path = os.path.join(out_dir, f"{name}.tiles")
@@ -221,7 +248,7 @@ def write_tiles_bin(out_dir, name, tileset_id, entries, cols, rows, tile_props=N
         f.write(f"{name}.png\n".encode("utf-8"))
         write_u32(f, cols)
         write_u32(f, rows)
-        write_u32(f, tileset_id)
+        write_u32(f, tileset_number)
         write_u32(f, total_tiles)
 
         # Tiles — write all grid cells (including empty padding cells)
@@ -255,7 +282,9 @@ def main():
         description="Generate PZ .pack and .tiles.txt from PNG sprites."
     )
     parser.add_argument("--name", required=True, help="Tilesheet name (e.g. deadwire_01)")
-    parser.add_argument("--id", required=True, type=int, help="Tile definition ID (100-8190)")
+    parser.add_argument("--id", required=True, type=int,
+                        help="mod.info tiledef id (100-8190). Goes in mod.info "
+                             "only; the .tiles file numbers its tilesets from 1.")
     parser.add_argument("--sprites", required=True, nargs="+", help="PNG files (globs supported)")
     parser.add_argument("--cols", type=int, default=8, help="Atlas columns (default: 8)")
     parser.add_argument("--out", required=True, help="Output directory")
@@ -301,10 +330,10 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     pack_path = write_pack(args.out, args.name, atlas, entries, sprite_w, sprite_h)
     tiles_bin_path = write_tiles_bin(
-        args.out, args.name, args.id, entries, args.cols, rows, tile_props
+        args.out, args.name, TILESET_NUMBER, entries, args.cols, rows, tile_props
     )
     tiles_txt_path = write_tiles_txt(
-        args.out, args.name, args.id, entries, args.cols, rows, tile_props
+        args.out, args.name, TILESET_NUMBER, entries, args.cols, rows, tile_props
     )
 
     # Summary

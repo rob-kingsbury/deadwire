@@ -131,10 +131,14 @@ DeadwireConfig.Sounds = {
     TIN_CAN_RATTLE   = "Deadwire_TinCanRattle",
     WIRE_RATTLE      = "Deadwire_WireRattle",
     BELL_RING        = "Deadwire_BellRing",
-    ALARM_BELL       = "Deadwire_AlarmBell",
-    CAR_HORN         = "Deadwire_CarHorn",
     ELEC_ZAP         = "Deadwire_ElecZap",
 }
+
+-- ALARM_BELL and CAR_HORN used to sit in that table for Phase 2's pull-alarms.
+-- Neither had an ogg, a sound script block, or a single caller: three names for
+-- sounds that could not play. A declared name for a thing that does not exist
+-- is the shape rule 7 is about, so they are gone until the audio arrives with
+-- the feature.
 
 -----------------------------------------------------------
 -- Sandbox Helpers

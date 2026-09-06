@@ -19,7 +19,12 @@ Checked categories (each has hard ground truth in the install):
   distribution names   ProceduralDistributions.list keys
   SkillRequired/xpAward  perk names inside craftRecipe blocks
   Icon = X             media/textures/Item_X.png must exist
-  sprite names         this mod's own .tiles.txt tile indices
+  event names          zombie/Lua/LuaEventManager's registry
+  sprite names         the binary .tiles the game actually loads
+  .tiles header        magic, version, tileset number and tile count bounds
+  sound names          a sound block in the mod's script, with the ogg on disk
+  Java calls           method exists on the receiver's class chain, with an
+                       overload that takes that many arguments
   tiledef id           in range, and not colliding with a vanilla tilesheet
   sandbox options      every option declared is read, every key read is declared,
                        and every declared option has an EN label
@@ -34,6 +39,7 @@ import glob
 import json
 import os
 import re
+import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -63,14 +69,38 @@ TRANSLATE_EN = os.path.join(os.path.dirname(os.path.dirname(
 # suffix carried over into this project's JSON files by habit. It was wrong for
 # all three of them, and every item, recipe and sandbox option in the mod
 # displayed as a raw id until Session 17.
-TRANSLATOR_BASE_NAMES = {
-    "Attributes", "BodyParts", "Challenge", "ContextMenu", "Credits",
-    "DynamicRadio", "Entity", "EvolvedRecipeName", "Farming", "Fluids",
-    "GameSound", "IG_UI", "ItemName", "MakeUp", "MapLabel", "Moodles",
-    "Moveables", "Print_Media", "Print_Text", "RadioData", "RecipeGroups",
-    "Recipes", "Recorded_Media", "Sandbox", "Stash", "SurvivalGuide",
-    "SurvivorNames", "Tooltip", "UI",
+# Attribute names the JVM itself writes into every constant pool. Fixed by the
+# class file spec (JVMS 4.7), not by anything Project Zomboid chose, so removing
+# them is not the same as hardcoding the list we are trying to derive.
+JVM_ATTRIBUTE_NAMES = {
+    "AnnotationDefault", "BootstrapMethods", "Code", "ConstantValue",
+    "Deprecated", "EnclosingMethod", "Exceptions", "InnerClasses",
+    "LineNumberTable", "LocalVariableTable", "LocalVariableTypeTable",
+    "MethodParameters", "Module", "ModuleMainClass", "ModulePackages",
+    "NestHost", "NestMembers", "PermittedSubclasses", "Record",
+    "RuntimeInvisibleAnnotations", "RuntimeInvisibleParameterAnnotations",
+    "RuntimeInvisibleTypeAnnotations", "RuntimeVisibleAnnotations",
+    "RuntimeVisibleParameterAnnotations", "RuntimeVisibleTypeAnnotations",
+    "Signature", "SourceDebugExtension", "SourceFile", "StackMapTable",
+    "Synthetic",
 }
+
+
+def translator_base_names(jar):
+    """The file names Translator will actually open, read from the game.
+
+    This used to be a hardcoded set of 29 names, which is the same shape as
+    every checker this project has had to fix: a belief, agreeing with itself.
+    Translator builds <root>/media/lua/shared/Translate/<LANG>/<NAME>.json from
+    a fixed map in zombie/core/Translator$1, and a file outside it is simply
+    never opened -- no error, no warning, raw ids on screen. Reading the map's
+    own keys means a future build that adds one is picked up for free.
+    """
+    k = jar.klass("zombie/core/Translator$1")
+    pool = {v for v in k.pool if isinstance(v, str)}
+    return {v for v in pool
+            if re.fullmatch(r"[A-Z][A-Za-z0-9_]*", v)
+            and v not in JVM_ATTRIBUTE_NAMES}
 
 # Item ids referenced with a module prefix this checker cannot resolve are
 # skipped rather than reported; only Base.* has a single unambiguous source.
@@ -140,18 +170,93 @@ def mod_items():
     return set(re.findall(r"^\s*item\s+([A-Za-z_][A-Za-z0-9_]*)\s*$", src, re.M))
 
 
+TILES_PATH = os.path.join(MOD, "deadwire_01.tiles")
+
+# Bounds enforced by IsoWorld.LoadTileDefinitions, read from the 42.20.4
+# bytecode. The limits are 1024 when the tiledef fileNumber is exactly 1 and
+# 512 otherwise, and a mod's fileNumber is its mod.info tiledef id, so 512 is
+# always the number that applies to us.
+TILESETS_PER_FILE = 512
+TILES_PER_TILESET = 512
+
+
+def parse_tiles(path):
+    """Read the binary tile definitions the game actually loads.
+
+    Layout, confirmed against all seven vanilla .tiles files and the bytecode
+    of IsoWorld.LoadTileDefinitions:
+
+        "tdef" | version u32 | tileset_count u32
+        per tileset: name\n | image\n | cols u32 | rows u32
+                     tileset_number u32 | tile_count u32
+        per tile:    prop_count u32 | (key\n value\n) * prop_count
+
+    Note what the fifth field is NOT. pz-tilesheet's README calls it "id" and
+    says it must match the mod.info tiledef number. It is the tileset number,
+    LoadTileDefinitions rejects anything outside 1..512, and the tiledef number
+    is passed separately as fileNumber. Following that README and picking a
+    tiledef id above 512 to dodge a collision produces a file the game refuses,
+    and every world sprite silently disappears (#40).
+    """
+    with open(path, "rb") as fh:
+        blob = fh.read()
+    pos = [0]
+
+    def raw(n):
+        out = blob[pos[0]:pos[0] + n]
+        if len(out) != n:
+            raise ValueError("truncated at byte %d" % pos[0])
+        pos[0] += n
+        return out
+
+    def u32():
+        return struct.unpack("<I", raw(4))[0]
+
+    def line():
+        end = blob.find(b"\n", pos[0])
+        if end < 0:
+            raise ValueError("unterminated string at byte %d" % pos[0])
+        out = blob[pos[0]:end].decode("utf-8", "replace").strip()
+        pos[0] = end + 1
+        return out
+
+    magic = raw(4)
+    if magic != b"tdef":
+        raise ValueError("bad magic %r, expected b'tdef'" % magic)
+
+    out = {"version": u32(), "tilesets": []}
+    for _ in range(u32()):
+        ts = {"name": line(), "image": line(), "cols": u32(), "rows": u32(),
+              "tileset_number": u32(), "tile_count": u32()}
+        for _t in range(ts["tile_count"]):
+            for _prop in range(u32()):
+                line()
+                line()
+        out["tilesets"].append(ts)
+    out["trailing"] = len(blob) - pos[0]
+    return out
+
+
 def mod_sprites():
-    """Tile names the mod's own tilesheet actually defines."""
-    path = os.path.join(MOD, "deadwire_01.tiles.txt")
-    if not os.path.exists(path):
+    """Tile names the mod's own tilesheet actually defines.
+
+    Read from the binary, not the .tiles.txt beside it. The game builds
+    media/<name>.tiles and never looks at the text form -- the string
+    ".tiles.txt" occurs in no class in the jar -- so checking the text file
+    verified a file the game ignores, while the one it loads was verified by
+    nothing. Both are written from the same inputs, so they agreed by
+    construction: the same blind-checker shape as the crafting category prefix.
+    """
+    if not os.path.exists(TILES_PATH):
         return set()
-    with open(path, encoding="utf-8", errors="replace") as fh:
-        src = fh.read()
-    name = re.search(r"file\s*=\s*(\S+)", src)
-    if not name:
+    try:
+        tiles = parse_tiles(TILES_PATH)
+    except (ValueError, OSError):
         return set()
-    count = len(re.findall(r"^\s*tile\s*$", src, re.M))
-    return {"%s_%d" % (name.group(1), i) for i in range(count)}
+    names = set()
+    for ts in tiles["tilesets"]:
+        names |= {"%s_%d" % (ts["name"], i) for i in range(ts["tile_count"])}
+    return names
 
 
 def lua_files():
@@ -392,7 +497,7 @@ def check_categories(rep, pz):
                   "Translate/EN/Sandbox.json")
 
 
-def check_translation_filenames(rep):
+def check_translation_filenames(rep, base_names):
     """A translation file PZ does not ask for by name is simply never read."""
     if not os.path.isdir(TRANSLATE_EN):
         rep.bad("translations", "Translate/EN", "media/lua/shared/",
@@ -402,11 +507,11 @@ def check_translation_filenames(rep):
         if not fn.endswith(".json"):
             continue
         base = fn[:-len(".json")]
-        if base in TRANSLATOR_BASE_NAMES:
+        if base in base_names:
             rep.ok("translation file", fn)
         else:
             hint = ""
-            if base.endswith("_EN") and base[:-3] in TRANSLATOR_BASE_NAMES:
+            if base.endswith("_EN") and base[:-3] in base_names:
                 hint = ("drop the _EN suffix -- it is already in EN/; "
                         "should be %s.json" % base[:-3])
             else:
@@ -414,19 +519,379 @@ def check_translation_filenames(rep):
             rep.bad("translation file", fn, "Translate/EN/", hint)
 
 
+def pack_page_names(path):
+    """Page names inside a .pack atlas: "PZPK" | mask i32 | pages u32, then a
+    length-prefixed name per page. Only the names are needed here."""
+    with open(path, "rb") as fh:
+        blob = fh.read()
+    if blob[:4] != b"PZPK":
+        raise ValueError("bad magic %r, expected b'PZPK'" % blob[:4])
+    pages = struct.unpack_from("<I", blob, 8)[0]
+    pos = 12
+    names = []
+    for _ in range(min(pages, 64)):
+        n = struct.unpack_from("<I", blob, pos)[0]
+        pos += 4
+        names.append(blob[pos:pos + n].decode("utf-8", "replace"))
+        break   # one page per sheet here; reading further needs the image blob
+    return names
+
+
 def check_config_sprites(rep):
-    """Config.Sprites must name tiles the shipped tilesheet defines."""
-    sprites = mod_sprites()
-    if not sprites:
-        rep.bad("tilesheet", "deadwire_01.tiles.txt", "media/",
-                "tilesheet definition missing or unparseable")
+    """The tilesheet the game loads must define the tiles Config.Sprites names.
+
+    Everything here reads the binary .tiles. The text .tiles.txt beside it was
+    what this checker used to read, and the game never opens it (#40).
+    """
+    if not os.path.exists(TILES_PATH):
+        rep.bad("tilesheet", "deadwire_01.tiles", "media/",
+                "the file the game loads is missing")
         return
-    fallback = os.path.join(MOD, "texturepacks", "deadwire_01.pack")
-    if not os.path.exists(fallback):
+    try:
+        tiles = parse_tiles(TILES_PATH)
+    except (ValueError, OSError) as exc:
+        rep.bad("tilesheet", "deadwire_01.tiles", "media/",
+                "unparseable: %s" % exc)
+        return
+
+    if tiles["version"] == 1:
+        rep.ok("tilesheet", "version")
+    else:
+        rep.bad("tilesheet", "version %d" % tiles["version"], "media/deadwire_01.tiles",
+                "LoadTileDefinitions accepts version 1 only")
+
+    if tiles["trailing"] == 0:
+        rep.ok("tilesheet", "byte length")
+    else:
+        rep.bad("tilesheet", "byte length", "media/deadwire_01.tiles",
+                "%d bytes left over after parsing -- the layout is not what we "
+                "think it is" % tiles["trailing"])
+
+    if not tiles["tilesets"]:
+        rep.bad("tilesheet", "tilesets", "media/deadwire_01.tiles",
+                "no tilesets declared, so no world sprite can resolve")
+        return
+
+    for ts in tiles["tilesets"]:
+        num = ts["tileset_number"]
+        if 1 <= num <= TILESETS_PER_FILE:
+            rep.ok("tilesheet", "tileset number")
+        else:
+            rep.bad("tilesheet", "tileset number %d" % num,
+                    "media/deadwire_01.tiles",
+                    "must be 1..%d or the game refuses the whole file and every "
+                    "world sprite vanishes. This is NOT the mod.info tiledef id, "
+                    "whatever pz-tilesheet's README says" % TILESETS_PER_FILE)
+
+        if 0 <= ts["tile_count"] <= TILES_PER_TILESET:
+            rep.ok("tilesheet", "tile count")
+        else:
+            rep.bad("tilesheet", "tile count %d" % ts["tile_count"],
+                    "media/deadwire_01.tiles",
+                    "must be 0..%d" % TILES_PER_TILESET)
+
+        expected = ts["cols"] * ts["rows"]
+        if ts["tile_count"] == expected:
+            rep.ok("tilesheet", "grid")
+        else:
+            rep.bad("tilesheet", "grid %dx%d" % (ts["cols"], ts["rows"]),
+                    "media/deadwire_01.tiles",
+                    "declares %d tiles but the grid holds %d"
+                    % (ts["tile_count"], expected))
+
+    # Config.Sprites indexes into this sheet by hand, so the highest index it
+    # names has to exist. Adding a PNG that sorts earlier renumbers everything
+    # after it silently, which is the hazard recorded in context.md.
+    highest = -1
+    for path in lua_files():
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            code = re.sub(r"--[^\n]*", "", fh.read())
+        for idx in re.findall(r'"deadwire_01_(\d+)"', code):
+            highest = max(highest, int(idx))
+    total = sum(ts["tile_count"] for ts in tiles["tilesets"])
+    if highest < total:
+        rep.ok("tilesheet", "sprite indices")
+    else:
+        rep.bad("tilesheet", "deadwire_01_%d" % highest, "media/deadwire_01.tiles",
+                "the sheet defines %d tiles, so index %d does not exist"
+                % (total, highest))
+
+    pack = os.path.join(MOD, "texturepacks", "deadwire_01.pack")
+    if not os.path.exists(pack):
         rep.bad("tilesheet", "deadwire_01.pack", "media/texturepacks/",
                 "declared in mod.info but not present")
+        return
+    rep.ok("tilesheet", "deadwire_01.pack")
+
+    # The tile definitions name an image; the atlas has to be the page that
+    # supplies it, or every tile resolves to nothing.
+    try:
+        pages = pack_page_names(pack)
+    except (ValueError, OSError, struct.error) as exc:
+        rep.bad("tilesheet", "deadwire_01.pack", "media/texturepacks/",
+                "unparseable: %s" % exc)
+        return
+    wanted = tiles["tilesets"][0]["name"]
+    if any(page == wanted or page == wanted + "0" for page in pages):
+        rep.ok("tilesheet", "pack page")
     else:
-        rep.ok("tilesheet", "deadwire_01.pack")
+        rep.bad("tilesheet", "pack page", "media/texturepacks/deadwire_01.pack",
+                "tiles name %r but the atlas page is %r" % (wanted, pages))
+
+
+# --------------------------------------------------------------- event names
+
+def pz_event_names(jar):
+    """Every event name the game's own event manager knows about.
+
+    Deliberately a superset: this is the identifier-shaped part of
+    zombie/Lua/LuaEventManager's constant pool with the JVM's own attribute
+    names removed, so a handful of Java member names ("get", "size") come along
+    too. That direction is safe. A subset would mean reporting real events as
+    missing, and a checker that cries wolf stops being read; a superset can only
+    fail to flag a typo that happens to collide with a Java identifier, and it
+    still catches the case that actually bit us -- Events.OnPlayerConnect, a
+    name that appears nowhere in the jar at all (#33).
+    """
+    k = jar.klass("zombie/Lua/LuaEventManager")
+    pool = {v for v in k.pool if isinstance(v, str)}
+    return {v for v in pool
+            if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", v)
+            and v not in JVM_ATTRIBUTE_NAMES}
+
+
+def check_events(rep, jar):
+    """Events.X.Add(...) on a name the game does not have throws at load.
+
+    It throws "attempt to index a nil value" the moment the file is read, in
+    every run mode, and everything below that line in the file never registers.
+    Nothing in the test suite caught it, because tests/stubs.lua invented any
+    event name it was asked for -- 159 tests passed over a dead handler for a
+    whole release.
+    """
+    known = pz_event_names(jar)
+    for path in lua_files():
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            code = re.sub(r"--[^\n]*", "", fh.read())
+        for name in sorted(set(re.findall(r"\bEvents\.([A-Za-z_][A-Za-z0-9_]*)", code))):
+            rep.check("event", name, known, rel(path))
+
+
+EVENTS_CACHE = os.path.join(REPO, "tests", "pz_events.lua")
+
+
+def write_events_cache(jar):
+    names = sorted(pz_event_names(jar))
+    lines = [
+        "-- GENERATED by scripts/verify_names.py --update-events. Do not edit.",
+        "--",
+        "-- Every event name in zombie/Lua/LuaEventManager's constant pool.",
+        "-- tests/stubs.lua reads this so an Events.X the game does not have",
+        "-- fails the test suite instead of being invented on demand, which is",
+        "-- how Events.OnPlayerConnect passed 159 tests (#33, #43).",
+        "--",
+        "-- verify_names.py fails if this file disagrees with the installed jar,",
+        "-- so it cannot quietly go stale.",
+        "return {",
+    ]
+    lines += ['    ["%s"] = true,' % n for n in names]
+    lines.append("}")
+    with open(EVENTS_CACHE, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("\n".join(lines) + "\n")
+    return len(names)
+
+
+def check_events_cache(rep, jar):
+    """The stub allow-list is a cache of the jar, and must still match it.
+
+    The test suite has to run without the game installed, so the list is
+    committed. A committed list is a remembered one, and this project's whole
+    bug history is remembered values that stopped being true -- hence the gate.
+    """
+    if not os.path.exists(EVENTS_CACHE):
+        rep.bad("event cache", "tests/pz_events.lua", "tests/",
+                "missing -- run python scripts/verify_names.py --update-events")
+        return
+    with open(EVENTS_CACHE, encoding="utf-8") as fh:
+        cached = set(re.findall(r'\["([^"]+)"\]\s*=\s*true', fh.read()))
+    live = pz_event_names(jar)
+    if cached == live:
+        rep.ok("event cache", "tests/pz_events.lua")
+        return
+    missing = len(live - cached)
+    extra = len(cached - live)
+    rep.bad("event cache", "tests/pz_events.lua", "tests/",
+            "out of date against the installed jar (%d new, %d gone) -- run "
+            "python scripts/verify_names.py --update-events" % (missing, extra))
+
+
+# --------------------------------------------------------------- sound names
+
+def check_sounds(rep):
+    """A sound name with no script block plays nothing, silently.
+
+    PZ logs "no GameSound" only for some paths; a name that reaches
+    PlayWorldSound with no matching `sound X {}` block simply makes no noise,
+    which on an alarm mod is the entire feature failing with no symptom.
+    """
+    script = os.path.join(MOD, "scripts", "deadwire_sounds.txt")
+    if not os.path.exists(script):
+        rep.bad("sound", "deadwire_sounds.txt", "media/scripts/", "missing")
+        return
+    with open(script, encoding="utf-8", errors="replace") as fh:
+        src = re.sub(r"//[^\n]*", "", fh.read())
+
+    declared = set(re.findall(r"^\s*sound\s+([A-Za-z0-9_]+)", src, re.M))
+    for block in declared:
+        rep.ok("sound block", block)
+
+    # Every clip has to point at a file that is actually shipped.
+    for clip in set(re.findall(r"file\s*=\s*([^,\s]+)", src)):
+        # Paths are relative to the mod's 42/ directory.
+        disk = os.path.join(os.path.dirname(MOD), clip.replace("/", os.sep))
+        if os.path.exists(disk):
+            rep.ok("sound file", clip)
+        else:
+            rep.bad("sound file", clip, "media/scripts/deadwire_sounds.txt",
+                    "declared in a clip but not on disk")
+
+    used = set()
+    for path in lua_files():
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            code = re.sub(r"--[^\n]*", "", fh.read())
+        used |= set(re.findall(r'PlayWorldSound\(\s*"([A-Za-z0-9_]+)"', code))
+        if path.endswith("Config.lua"):
+            block = re.search(r"DeadwireConfig\.Sounds\s*=\s*\{(.*?)\}", code, re.S)
+            if block:
+                used |= set(re.findall(r'"([A-Za-z0-9_]+)"', block.group(1)))
+
+    for name in sorted(used):
+        rep.check("sound", name, declared, "media/scripts/deadwire_sounds.txt")
+
+
+# ---------------------------------------------------------------- Java calls
+
+# Receiver variable -> the class it holds, for the colon-call check below. Only
+# names whose type is unambiguous everywhere in this codebase are listed; any
+# other receiver is skipped rather than guessed at. Method lookup walks the
+# superclass chain, so IsoThumpable finds setAlphaAndTarget on IsoObject.
+RECEIVER_TYPES = {
+    "sq": "zombie/iso/IsoGridSquare",
+    "psq": "zombie/iso/IsoGridSquare",
+    "square": "zombie/iso/IsoGridSquare",
+    "cell": "zombie/iso/IsoCell",
+    "obj": "zombie/iso/objects/IsoThumpable",
+    "isoObject": "zombie/iso/objects/IsoThumpable",
+    "player": "zombie/characters/IsoPlayer",
+    "character": "zombie/characters/IsoPlayer",
+    "zombie": "zombie/characters/IsoZombie",
+    "inv": "zombie/inventory/ItemContainer",
+    "role": "zombie/characters/Role",
+    "climate": "zombie/iso/weather/ClimateManager",
+    "part": "zombie/characters/BodyDamage/BodyPart",
+    "bodyDamage": "zombie/characters/BodyDamage/BodyDamage",
+}
+
+# Receivers that legitimately hold either a zombie or a player.
+UNION_RECEIVERS = {
+    "entity": ("zombie/characters/IsoZombie", "zombie/characters/IsoPlayer"),
+}
+
+# Global getters whose return type is fixed. BaseSoundManager is at
+# zombie/BaseSoundManager, not zombie/audio/.
+GLOBAL_GETTER_TYPES = {
+    "getSoundManager": "zombie/BaseSoundManager",
+    "getWorldSoundManager": "zombie/WorldSoundManager",
+}
+
+
+def _lua_arg_count(code, open_paren):
+    """Arguments in the Lua call whose "(" is at open_paren, or None.
+
+    Returns None when the call cannot be counted honestly: unbalanced, varargs,
+    or running off the end. Reporting nothing beats reporting a guess.
+    """
+    depth = 0
+    args = 0
+    seen = False
+    i = open_paren
+    while i < len(code):
+        c = code[i]
+        if c in "\"'":
+            quote = c
+            i += 1
+            while i < len(code) and code[i] != quote:
+                i += 2 if code[i] == "\\" else 1
+            seen = True
+        elif c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+            if depth == 0:
+                return args + 1 if seen else 0
+        elif c == "," and depth == 1:
+            args += 1
+        elif c == "." and code[i:i + 3] == "...":
+            return None
+        elif not c.isspace():
+            seen = True
+        i += 1
+    return None
+
+
+def check_java_calls(rep, jar):
+    """Does this method exist on that class, and does it take that many args?
+
+    The bugs that have cost this project most were names that look right and do
+    not exist: getRainStrength for getRainIntensity, Climate for
+    getClimateManager(). Nothing errors; the feature just never happens. The
+    receiver map above is small on purpose -- an unknown receiver is skipped.
+    """
+    tables = {}
+    for name, path in list(RECEIVER_TYPES.items()) + list(GLOBAL_GETTER_TYPES.items()):
+        if not jar.has_class(path):
+            rep.bad("receiver class", path, "scripts/verify_names.py",
+                    "not in this build -- the checks for '%s' would silently "
+                    "pass on anything" % name)
+            continue
+        tables[name] = jar.methods_deep(path)
+    for name, paths in UNION_RECEIVERS.items():
+        merged = {}
+        for path in paths:
+            if not jar.has_class(path):
+                rep.bad("receiver class", path, "scripts/verify_names.py",
+                        "not in this build")
+                continue
+            for meth, arities in jar.methods_deep(path).items():
+                merged.setdefault(meth, set()).update(arities)
+        tables[name] = merged
+
+    call_re = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*(\(\s*\))?\s*:\s*"
+                         r"([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+    for path in lua_files():
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            code = re.sub(r"--[^\n]*", "", fh.read())
+        where = rel(path)
+        for m in call_re.finditer(code):
+            recv, called, method = m.group(1), m.group(2), m.group(3)
+            if called and recv not in GLOBAL_GETTER_TYPES:
+                continue                    # some other function's return value
+            if not called and recv in GLOBAL_GETTER_TYPES:
+                continue                    # not the getter, just a variable
+            table = tables.get(recv)
+            if table is None:
+                continue                    # receiver type not established
+            if method not in table:
+                rep.bad("java method", "%s:%s" % (recv, method), where,
+                        near(method, set(table)))
+                continue
+            n = _lua_arg_count(code, m.end() - 1)
+            if n is None or n in table[method]:
+                rep.ok("java method", method)
+            else:
+                rep.bad("java method", "%s:%s/%d" % (recv, method, n), where,
+                        "no overload takes %d argument(s); valid: %s"
+                        % (n, ", ".join(str(a) for a in sorted(table[method]))))
 
 
 def _parse_modinfo(path):
@@ -493,6 +958,8 @@ def check_modinfo(rep, pz):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pz", default=DEFAULT_PZ, help="Project Zomboid install dir")
+    ap.add_argument("--update-events", action="store_true",
+                    help="rewrite tests/pz_events.lua from the installed jar")
     args = ap.parse_args()
 
     jar_path = os.path.join(args.pz, "projectzomboid.jar")
@@ -502,6 +969,12 @@ def main():
         return 2
 
     jar = Jar(jar_path)
+
+    if args.update_events:
+        n = write_events_cache(jar)
+        print("wrote tests/pz_events.lua: %d event names" % n)
+        return 0
+
     items = vanilla_items(args.pz)
     dists = vanilla_distributions(args.pz)
 
@@ -509,10 +982,14 @@ def main():
     check_lua(rep, jar, items, dists)
     check_scripts(rep, jar, items)
     check_sandbox_options(rep)
-    check_translation_filenames(rep)
+    check_translation_filenames(rep, translator_base_names(jar))
     check_categories(rep, args.pz)
     check_config_sprites(rep)
     check_modinfo(rep, args.pz)
+    check_events(rep, jar)
+    check_events_cache(rep, jar)
+    check_sounds(rep)
+    check_java_calls(rep, jar)
 
     print("verify_names: %d references checked against %s"
           % (rep.checked, os.path.basename(args.pz)))

@@ -30,3 +30,18 @@ sound Deadwire_BellRing
         distanceMax = 300,
     }
 }
+
+// Phase 3 (#13). The clip is here now so the sound name resolves; the wire
+// type that plays it does not exist yet. EventHandlers' ElectricZap handler
+// already names it, and without this block it would have played nothing at
+// all, silently, on the day #13 landed.
+sound Deadwire_ElecZap
+{
+    category = Item,
+    is3D = true,
+    clip
+    {
+        file = media/sound/electric_zap.ogg,
+        distanceMax = 200,
+    }
+}

@@ -6,10 +6,35 @@
 -----------------------------------------------------------------
 -- Events (PZ event system)
 -- Events.SomeName.Add(fn) stores handlers we can invoke in tests.
+--
+-- This table used to invent any event name it was asked for. That is how
+-- Events.OnPlayerConnect -- a name in none of the jar's 23,740 classes, which
+-- threw at load in every run mode and meant the join-time wire sync never ran
+-- once -- passed 159 tests for a whole release (#33).
+--
+-- A checker that supplies whatever it is asked for cannot detect an absence.
+-- So the allow-list comes from the game itself: tests/pz_events.lua is
+-- generated from zombie/Lua/LuaEventManager by
+-- `python scripts/verify_names.py --update-events`, and verify_names fails if
+-- the committed copy has drifted from the installed jar. The list is committed
+-- so the suite still runs on a machine with no game installed.
 -----------------------------------------------------------------
+local ok, KNOWN_EVENTS = pcall(dofile, "tests/pz_events.lua")
+if not ok or type(KNOWN_EVENTS) ~= "table" then
+    error("tests/pz_events.lua is missing or unreadable. Run:\n"
+        .. "  python scripts/verify_names.py --update-events\n"
+        .. "(run the suite from the repo root)")
+end
+
 Events = {}
 setmetatable(Events, {
     __index = function(t, k)
+        if not KNOWN_EVENTS[k] then
+            error("Events." .. tostring(k) .. " is not an event this game has.\n"
+                .. "Registering it would throw at load and everything after that\n"
+                .. "line in the file would never run. Check the name against\n"
+                .. "tests/pz_events.lua.", 2)
+        end
         local ev = { _handlers = {} }
         -- Add: called with dot syntax in PZ code, e.g. Events.OnZombieUpdate.Add(fn)
         ev.Add  = function(fn) table.insert(ev._handlers, fn) end
