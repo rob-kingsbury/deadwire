@@ -3,49 +3,47 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 20
+last_session: 21
 last_updated: 2026-09-06
-continue_with: "Execute the #30 review findings in the order set out in PLAN.md. Group 1 first: #31, #32, #33, #34. Those four are the ones that stop the mod working."
-blockers: "None hard. #38 needs a decision from Rob, not code. Everything in #25 still needs someone willing to sit in-game."
-
-tech:
-  stack: pz-lua-mod
-  tools: [Lua 5.1 (Kahlua2), Project Zomboid B42.20.4, Git, GitHub]
-
-paths:
-  mod_root: Contents/mods/Deadwire/42/
-  shared: Contents/mods/Deadwire/42/media/lua/shared/Deadwire/
-  client: Contents/mods/Deadwire/42/media/lua/client/Deadwire/
-  server: Contents/mods/Deadwire/42/media/lua/server/Deadwire/
-  scripts: Contents/mods/Deadwire/42/media/scripts/
-  rules: .claude/rules/
-  docs: docs/
-
-workflow:
-  tracking: GitHub Issues
-  phases: 4 (MVP → Pull-Alarms → Electric Fencing → Advanced)
-  current_phase: 1
+continue_with: "Loop until the whole mod is believed-correct on paper, then hand Rob a test plan. Two decisions block the last of it: #36 and #38. Everything else is #42, #44, #29."
+blockers: "#36 and #38 need Rob, not code. #25 needs someone sitting in a running game; nothing in this mod has ever been watched working."
 ```
 
 ## To Resume
 
 ```
-Deadwire v0.1.1, Session 21. Start from origin/main (git pull).
+Deadwire v0.1.1, Session 22. Start from origin/main (git pull).
 
-The #30 code review is done and closed. Fourteen findings, eleven confirmed
-against the installed 42.20.4 jar, filed as #31 to #43. The full report is
-docs/REVIEW-30.md; the order to do them in is PLAN.md.
+Last code change is ee2393b; the handoff commit sits on top of it.
+Tree clean, 9 issues open, nothing in flight.
 
-THIS WINDOW: execute Group 1 from PLAN.md — #31, #32, #33, #34. Those four
-break the mod. Read the five run-mode facts in PLAN.md before touching any
-file; three of the four findings only make sense with them.
+Session 21 executed the whole #30 review except the two decisions. Ten issues
+closed: #31 #32 #33 #34 (the mod did not work), #35 #37 #39 #41 (correctness),
+#40 #43 (the checkers were lying).
 
-Do NOT trust the four tests at tests/test_server_commands.lua:429-490. They
-assert the #31 bug. Do NOT trust tests/stubs.lua on event names; it invents
-any name asked for, which is how #33 passed 159 tests.
+THIS WINDOW, per Rob: keep going until the mod is theoretically correct, then
+stop and produce a test plan he can run in-game. Order:
 
-THEN: Group 2, then stop and show Rob before Group 3, which contains scope
-calls (#36 deletes a handler, #38 is a decision not a patch).
+  1. Ask Rob the two decisions FIRST, because they change what gets built:
+     - #36 deletes the PlaceWire server handler and its client wrapper. Nothing
+       calls them; the real path is the build action, which the engine already
+       validates server-side. It also adds owner and distance gates to
+       CamouflageWire and RemoveWire.
+     - #38 is not a patch. Wire health, maxSpan and proneDuration are declared
+       and read by no code, so the sandbox tooltips promise behaviour that does
+       not exist. Either the text comes down to what ships, or the behaviour
+       gets built.
+  2. #42 camouflage has no player-facing entry point at all. Twelve sandbox
+     options, CamoVisibility, CamoDegradation, and no way for a player to
+     apply it. Needs a context-menu option, and #36 decides its gating.
+  3. #44 orphan sandbox labels and uncalled functions. Read the labels before
+     deleting; they map what got cut.
+  4. #29 owner outline.
+  5. THEN write the test plan and stop. #25 is the remainder: sounds, camo
+     visibility, camo rain decay, and what happens when a zombie hits a wire.
+
+Do NOT trust a green test suite on its own. Every fix this session was checked
+by putting the bug back and confirming the tests failed. Do that.
 
 Gates:  python scripts/verify_names.py  |  run_tests.bat (PowerShell, not Git
 Bash)  |  python tools/validate_pack.py
@@ -56,59 +54,50 @@ is safe. `harness_dead` almost always means PZ is PAUSED or ALT-TABBED, not
 crashed; the poll loop stops when it loses focus, so wait and retry first.
 ```
 
-## How PZ actually loads and routes mod Lua (Session 20, read from bytecode)
+## How PZ actually loads and routes mod Lua
 
-Nobody in this project had written these down. Half the Session 20 findings only
-make sense with them, and every guard in this repo was written without them.
+Read from bytecode in Session 20. Half of Sessions 20 and 21 only make sense
+with these, and every guard written before them was written blind.
 
 0. **In single player, `isServer()` and `isClient()` are BOTH false.**
-   `isServer()` is true only on a dedicated server. The correct guard for "the
+   `isServer()` is true only on a dedicated server. The guard for "the
    authoritative side" is `if isClient() then return end`, which runs in single
-   player and on the dedicated server. Getting this backwards in
-   `LootDistribution.lua` meant no Deadwire loot ever spawned in any
-   single-player game, for the entire life of the mod, silently (Session 18).
+   player and on the dedicated server. Getting this backwards meant no Deadwire
+   loot ever spawned in any single-player game, silently, for the mod's whole
+   life (Session 18).
 1. **A game client runs `shared/`, `client/` AND `server/` Lua.** `GameWindow`
    loads shared and client at boot; `GameLoadingState` loads `server` whenever a
-   world loads, single player or multiplayer alike. So every `server/` file in
-   this mod, including its event registrations, runs on multiplayer clients.
-   `server/` does not mean "server only". It means "loaded last."
+   world loads. `server/` does not mean "server only". It means "loaded last".
 2. **A dedicated server runs `shared/` and `server/` only.** `GameServer` calls
-   `LoadDirBase("client", true)`, and that boolean checksums the files without
-   executing them. No `client/` code of ours can ever run there.
+   `LoadDirBase("client", true)`, which checksums without executing. No
+   `client/` code of ours can ever run there.
 3. **`sendServerCommand` does nothing except on a real dedicated server.** Both
-   Lua overloads are `if (GameServer.server) ...; return;`. In single player and
-   on multiplayer clients it returns immediately. The single-player loopback is
-   reachable only from `SGlobalObjectNetwork`. Everything in
+   overloads are `if (GameServer.server) ...; return;`. Everything in
    `client/EventHandlers.lua` is dead in single player; the mod works there only
    because both halves share one `tileIndex` in memory.
-4. **`sendClientCommand` in single player is asynchronous.** It goes through
-   `SinglePlayerClient` to a packet to `SinglePlayerServer.addIncoming` to
-   `mainLoopDealWithNetData` to `OnClientCommand`, arriving on the next net pass,
-   not the same frame. On a dedicated server it throws, which is unreachable for
-   us because of fact 2.
+4. **`sendClientCommand` in single player is asynchronous**, arriving on the
+   next net pass, not the same frame.
 5. **In multiplayer the server rebuilds the build object from scratch.**
-   `ISBuildAction:perform` returns before `create()`; `zombie.core.BuildAction.parse`
-   reads the class name from the metatable `Type` and calls `<Type>:new(...)` with
-   values harvested **by parameter name** from the client instance's raw fields.
-   Only String, Double, Boolean, table, InventoryItem, IsoDirections and
-   IsoDeadBody survive. An IsoPlayer argument is silently dropped, which is #32.
+   `BuildAction.parse` reads the class name from the metatable and calls
+   `<Type>:new(...)` with values harvested **by parameter name**. Only String,
+   Double, Boolean, table, InventoryItem, IsoDirections and IsoDeadBody survive.
+   An IsoPlayer argument is silently dropped, which was #32.
 
-Corollary worth stating on its own: **`server/` is the wrong place to put a
-guard.** If a file must not run on a multiplayer client, it needs
-`if isClient() then return end` inside it. The directory will not do it for you.
+Corollary: **`server/` is the wrong place to put a guard.** If a file must not
+run on a multiplayer client, write `if isClient() then return end` inside it.
 
 ## What is actually verified in a running game (Session 18)
 
-Confirmed in a real 42.20 game, not inferred: the harness IPC round-trip, item
-display names, all 4 kits spawning, all 4 recipes registered and translated,
-item and crafting categories both resolving, `SandboxVars.Deadwire` populated
-and read through `getSandbox`, loot injection at **11/11 tables, chance 12**,
-and all 10 sprites as real distinct 64x128 textures.
+Confirmed in a real 42.20 game: harness IPC, item display names, all 4 kits
+spawning, all 4 recipes registered and translated, item and crafting categories
+resolving, `SandboxVars.Deadwire` read through `getSandbox`, loot injection at
+**11/11 tables, chance 12**, and all 10 sprites as distinct 64x128 textures.
 
-**Still unverified, the honest remainder of #25:** sounds, camo visibility, camo
-rain degradation, and what happens when a zombie walks into a wire. Also the
-whole `createWire` path, since Session 18 placed raw `IsoObject`s rather than
-the mod's own `IsoThumpable`. MP cannot be tested in single player at all.
+**Everything else is unverified.** Sounds, camo visibility, camo rain decay,
+what happens when a zombie walks into a wire, and the whole `createWire` path —
+Session 18 placed raw `IsoObject`s, never the mod's own `IsoThumpable`. MP
+cannot be tested in single player at all, which leaves #32's rebuild, #33's join
+sync and #34's camo-after-restart untested by anything but reasoning.
 
 ## Sprites
 
@@ -116,24 +105,26 @@ Art is finished. What remains here is only what breaks if you touch it.
 
 **Index hazard:** `pz_tilesheet.py` globs `deadwire_*.png` alphabetically, and
 `DeadwireConfig.Sprites` holds those indices by hand. A new sprite that sorts
-earlier renumbers everything after it, silently. Adding `electric` in Session 18
-moved reinforced/tanglefoot/tincan from 2,4,6 to 4,6,8.
+earlier renumbers everything after it, silently.
 
 ```
 0/1 bell      2/3 electric (banked for #13, absent from Sprites on purpose)
 4/5 reinforced   6/7 tanglefoot   8/9 tincan
 ```
 
-**Geometry:** in PZ's projection both facings are diagonal and mirrored about
-the vertical axis. There is no flat-horizontal orientation. Verified against
-vanilla `fencing_01`.
+**Geometry:** both facings are diagonal and mirrored about the vertical axis;
+there is no flat-horizontal one. Stakes 18px above the ground line, tanglefoot
+6px. `tools/process_sprite_render.py` is the pipeline; its docstring has the
+working prompts.
 
-Stake heights: 18px above the ground line for tincan, bell, reinforced and
-electric; 6px for tanglefoot.
-
-`tools/process_sprite_render.py` is the whole pipeline and its docstring holds
-the working prompts. The pipeline story, the abandoned ComfyUI experiment and
-the Session 18 bug write-ups are in `.claude/archive/sessions.md`.
+**The `.tiles` file:** `42/media/deadwire_01.tiles` is what the game loads.
+There is no `.tiles.txt` any more — the game never opened it, and checking it
+proved nothing about the binary beside it. The fifth per-tileset field is the
+**tileset number**, bounded 1..512 by `LoadTileDefinitions`; it is NOT the
+mod.info tiledef id, whose range is 100..8190. `tools/pz-tilesheet` used to
+write the tiledef id there, so a future id above 512 would have made the game
+refuse the file and every world sprite vanish with no error. Fixed to write 1.
+Our shipped file still says 200, which is legal and loads.
 
 ## Name verification: run the script, do not check by hand
 
@@ -141,23 +132,24 @@ the Session 18 bug write-ups are in `.claude/archive/sessions.md`.
 python scripts/verify_names.py          # exit 0 = everything resolves
 ```
 
-Resolves 109 references against the installed 42.20: perks, capabilities, body
-parts, `Base.X` items, distribution names, icon PNGs, sprite names, sandbox
-options, translation **filenames**, category and page label keys including the
-prefixes themselves, and the `tiledef` id range. `scripts/pzclass.py` is the
-Java `.class` reader underneath.
+Resolves **271** references against the installed 42.20.4: perks, capabilities,
+body parts, `Base.X` items, distribution names, icon PNGs, sprite names, sandbox
+options, translation filenames, category and page label keys, the tiledef id
+range, **event names, sound names, the binary `.tiles` header, and Java method
+existence and arity**. `scripts/pzclass.py` is the Java `.class` reader
+underneath and now walks the superclass chain.
 
-Read declared **fields and methods**, not the raw constant pool. A pool grep
-matches any string anywhere in the class, so it passes `Perks.Foraging`.
+`--update-events` regenerates `tests/pz_events.lua`, the allow-list
+`tests/stubs.lua` uses to refuse an event name the game does not have. The gate
+fails if that committed copy drifts from the jar.
 
-The script proves what exists. What it cannot tell you is the traps, so those
-live here. DOES NOT EXIST: `Perks.Foraging` (it is `PlantScavenging`),
-`Perks.Carpentry` (`Woodwork`), `Capability.CanBuildAnywhere` (`UseBuildCheat`),
-the `Climate` global (`getClimateManager()`), `getRainStrength`
-(`getRainIntensity`), `Base.TreeBranch` (`TreeBranch2`), `Events.OnPlayerConnect`,
-any church distribution at all, `sprite:getTextureCount()`, and `getTextOrNull`
-for recipe display names, since recipes translate through the UI and a nil there
-means nothing. There is **no electrocution system anywhere in the jar.**
+The script proves what exists. The traps live here. DOES NOT EXIST:
+`Perks.Foraging` (it is `PlantScavenging`), `Perks.Carpentry` (`Woodwork`),
+`Capability.CanBuildAnywhere` (`UseBuildCheat`), the `Climate` global
+(`getClimateManager()`), `getRainStrength` (`getRainIntensity`),
+`Base.TreeBranch` (`TreeBranch2`), `Events.OnPlayerConnect`, any church
+distribution, `sprite:getTextureCount()`, and `getTextOrNull` for recipe display
+names. There is **no electrocution system anywhere in the jar.**
 
 **Internal name ≠ displayed name.** `Woodwork` displays as "Carpentry",
 `PlantScavenging` as "Foraging".
@@ -169,9 +161,9 @@ exist even if empty. `poster=42/poster.png`. `sandbox-options.txt` in
 `42/media/`.
 
 **Translations (42.15+) are JSON with NO `_EN` suffix** — the `EN/` directory
-already says the language. `ItemName.json`, `Recipes.json`, `Sandbox.json`,
-`IG_UI.json`. `zombie/core/Translator$1` holds a fixed hardcoded list of base
-names; a file outside that list is never opened, with no error. Categories need
+already says the language. `zombie/core/Translator$1` holds a fixed list of base
+names; a file outside it is never opened, with no error. verify_names now reads
+that list from the jar rather than remembering it. Categories need
 `IGUI_ItemCat_X` and `IGUI_CraftingCategories_X` in `IG_UI.json`; the sandbox
 page label needs `Sandbox_<page>` in `Sandbox.json`.
 
@@ -185,19 +177,18 @@ page label needs `Sandbox_<page>` in `Sandbox.json`.
 6. **Detection is CLIENT-side**: OnZombieUpdate/OnPlayerUpdate are client events
 7. **No guards around unverified API names.** A guard around a typo is
    indistinguishable from a guard around a real fallback. Cost three dead
-   features (Session 16).
-8. **A missing name logs loudly.** LootDistribution warns rather than skipping
-   in silence.
-9. **A checker must derive, not remember.** Three checkers have now blessed bugs
-   by agreeing with a hardcoded value nobody rechecked (Sessions 18 and 20).
-   A checker that supplies whatever it is asked for cannot detect an absence:
-   `tests/stubs.lua` invented `Events.OnPlayerConnect` for 159 passing tests.
-10. **`server/` is a load-order directory, not a guard.** Files in it run on
-    multiplayer clients too. If something must not run there, write
-    `if isClient() then return end` inside it (Session 20).
+   features (Session 16) and one invisible fallback sprite (#39).
+8. **A missing name logs loudly.** Never substitute a default for it.
+9. **A checker must derive, not remember.** Four checkers have now blessed bugs
+   by agreeing with a hardcoded value nobody rechecked. A checker that supplies
+   whatever it is asked for cannot detect an absence.
+10. **`server/` is a load-order directory, not a guard** (see run modes above).
 11. **Validate the reported thing, not the reporter.** The trigger gate checked
     how far away the reporting player was, when the question was where the
-    zombie is. Re-derive from world state server-side (Session 20, #31).
+    zombie is. Re-derive from world state server-side (#31).
+12. **Green tests are not evidence.** Put the bug back and confirm they fail.
+    Every fix in Session 21 was checked that way, and two of the checks that
+    looked fine did not bite until the mutation was made faithful.
 
 ## Architecture
 
@@ -205,95 +196,74 @@ Shared (WireNetwork, Config) → Client (Detection, UI, TriggerHandlers,
 CamoVisibility, EventHandlers) → Server (ServerCommands, WireManager,
 BuildActions, LootDistribution, CamoDegradation). Client `sendClientCommand`,
 server validates, `sendServerCommand` broadcasts. `ISBuildingObject:derive()`
-files MUST live in `server/`, because load order is shared then client then
-server. Cooldowns are **real seconds** (`os.time`), broadcast as a *duration*
-because clocks are independently skewed.
+files MUST live in `server/`. Cooldowns are **real seconds** (`os.time`),
+broadcast as a *duration* because clocks are independently skewed, and declared
+per wire type with no fallback.
 
 ## Gates
 
-All local, no CI configured. `run_tests.bat` 159 pass, but **4 of them assert
-bug #31**; run it from PowerShell, since `cmd //c` from Git Bash fails on the
-path rather than on the tests. `python scripts/verify_names.py` 109 refs, all
-resolve. `python tools/validate_pack.py` 130 checks. In-game via PZ Test Pilot
-is partially run, see the section above.
+All local, no CI. `run_tests.bat` **187 pass** (PowerShell, not Git Bash —
+`cmd //c` fails on the path, not the tests). `python scripts/verify_names.py`
+**271 refs**. `python tools/validate_pack.py` **130 checks**. In-game via PZ
+Test Pilot is partially run; see "What is actually verified" above.
 
 ## Open Issues
 
-Titles come from `gh issue list` at session start. What that cannot tell you is
-the order, so only the order lives here. Detail in PLAN.md, evidence in
-`docs/REVIEW-30.md`.
+Nine open. Titles come from `gh issue list`; only the order lives here.
 
-- **Group 1, the mod does not work:** #31, #32, #33, #34.
-- **Group 2, correctness:** #35, #37, #41, #39.
-- **Group 3, needs Rob first:** #36 (deletes a handler), #38 (a decision, not a
-  patch), #40, #42, #43.
-Phase 1 (Tier 0 + Tier 1 + camo + sandbox) is where all current work is. Phase 2
-pull-alarms and Phase 4 advanced are not started; Phase 3 electric is #13.
+- **Needs Rob first:** #36 (deletes a handler), #38 (a decision, not a patch).
+- **Then:** #42 camouflage has no player-facing entry point, #44 orphan sandbox
+  labels and uncalled functions, #29 owner outline.
+- **Needs a running game:** #25 sounds, camo, rain, triggers. #12 loot injection
+  confirmed 11/11 and needs one real container sighting to close.
+- **Later phases:** #27 Tier 1 balance needs Rob; #13 Tier 3, and there is no
+  adjacency graph yet — compute a circuit id per tile at place and remove time,
+  never on the zombie tick.
 
-- **Older:** #29 mostly built inside CamoVisibility; #25 sounds/camo/rain/
-  triggers; #27 Tier 1 balance, needs Rob; #13 Tier 3, and there is no adjacency
-  graph yet, see the review comment on it; #12 loot injection confirmed 11/11
-  and needs one real container sighting to close.
+Phase 1 (Tier 0 + Tier 1 + camo + sandbox) is where all current work is.
 
 ## Recent sessions
 
-### Session 20 (2026-09-06): the review, and the mod's core feature does not work
+### Session 21 (2026-09-06): the review executed, and the checkers made honest
 
-A single Fable agent read all 2,136 lines against the installed 42.20.4 jar,
-using `javap` on the bytecode rather than inference. Fourteen findings, eleven
-confirmed, filed as #31 to #43. Report in `docs/REVIEW-30.md`.
+Ten issues closed across three commits. The mod's core feature works again.
 
-**Trip lines only fire when a player is already within 3 tiles of the wire.**
-`ServerCommands.lua:195` checks the distance of the player *reporting* the
-trigger, but the reporter is whichever client saw the zombie, and the zombie can
-be anywhere loaded. A wire tripped 10 tiles away rattles locally and is then
-silently dropped: no break, no cooldown, no camo degrade, re-firing every
-second. Broken since Session 17 while closing #15, and **four tests at
-`tests/test_server_commands.lua:429-490` assert the broken behaviour.**
+**The four that broke it (df281ce).** Trip lines only fired when a player was
+already within 3 tiles, because the server checked the *reporter's* distance
+rather than where the zombie was; it now re-derives from `getMovingObjects()` on
+a 3x3 around the wire. Wire placement failed entirely on a dedicated server
+because `new(character, wireType)` put a non-serializable IsoPlayer first.
+`Events.OnPlayerConnect` does not exist, so the join sync never ran once —
+replaced with a client `OnGameStart` request and a targeted reply. Camouflage
+was never written to the save.
 
-Three more that stop it working: placement fails entirely on a dedicated server
-(#32), `Events.OnPlayerConnect` does not exist so it throws at load every
-session and join-sync never fires (#33), and camouflage is never written to the
-save (#34). Camouflage also turns out to have no player-facing entry point at
-all (#42).
+**Correctness (0295d6b).** `CamoDegradation` and the wire load were running on
+multiplayer clients; the uncamouflage alpha reset moved into
+`WireNetwork.setCamouflaged` so it runs in single player at all; tanglefoot
+stopped inheriting the 36-second Tier 1 cooldown; Detection stopped leaking one
+modData key per tile crossed; `FALLBACK_SPRITE` deleted.
 
-`tests/stubs.lua` invents any event name asked for, which is why 159 tests
-passed over #33. Third blind checker after Session 18's two, so it is now a
-rule: **a checker that supplies what it is asked for cannot detect an absence.**
+**The checkers (ee2393b).** `verify_names.py` went from 109 references to 271:
+event names, sound names, the binary `.tiles`, and Java method existence and
+arity. `tests/stubs.lua` no longer invents event names — the allow-list is
+generated from the jar. Deleted `deadwire_01.tiles.txt`, which the game never
+read and which this checker had been verifying instead of the real file. Fixed
+`tools/pz-tilesheet` writing the tiledef id into the tileset-number field.
 
-Two of PLAN.md's own "expected behaviour" lines were fiction. `maxSpan` and
-`proneDuration` are read by no code. I wrote that spec from Config fields
-without checking they had readers, which is the same mistake as trusting a
-checker.
+Every fix was mutation-checked: the bug put back, the tests confirmed failing.
+That caught two tests that looked like they covered a fix and did not. On its
+first run the new Java check flagged the checker's own wrong class path for
+`Role`, which is the behaviour it exists for.
 
-Built `.claude/hooks/context-prune.cjs`, a Stop hook that counts this file
-rather than asking whether it is too long, on the pattern of Sembr's
-handoff-staleness blocker. Also cleaned the repo root and closed #26 and #28.
+### Session 20 (2026-09-06): the review
 
-### Session 18 (2026-08-06): first in-game run, three bugs, two blind checkers
-
-The mod ran in a real game for the first time. Item names, recipes, categories,
-sandbox options, kit spawning and all 10 sprites confirmed working.
-
-Fixed the `isServer()` guard that had disabled single-player loot forever,
-`IGUI_CraftCategory_` to `IGUI_CraftingCategories_`, and fully opaque inventory
-icons. Both checkers were found blessing hardcoded values and now derive them.
-Full write-up in `.claude/archive/sessions.md`.
-
-Ten inert test `IsoObject`s were left in a throwaway world at x=1914-1922,
-y=14379/14381. Harmless unless that save is reused.
+A Fable agent read all 2,136 lines against the installed jar with `javap`, not
+inference. Fourteen findings, eleven confirmed, filed as #31 to #43. Report in
+`docs/REVIEW-30.md`. Established the five run-mode facts above, and found two of
+PLAN.md's own "expected behaviour" lines were fiction.
 
 ### Session 19 (2026-09-05/06): all art finished, sounds converted
 
-Ten world sprites and five inventory icons replaced; stake heights normalised.
-
-Rob's new bell and tin can takes arrived as Ogg **Opus stereo**, two silent
-failures stacked: FMOD does not decode Opus in an .ogg container, and stereo
-breaks 3D positional audio. Converted to Vorbis mono 44.1k. An electric zap is
-banked for #13.
-
-Confirmed the jar had moved to 42.20.4 three weeks after the name checker was
-written, and all 109 references still resolve. Also dismissed a suspicion about
-`distanceMin`: our sound scripts declare none, and neither does vanilla, in 0 of
-the 69 files that use `distanceMax`.
-
+Ten world sprites and five inventory icons replaced. Rob's bell and tin can
+takes arrived as Ogg **Opus stereo**, two silent failures stacked: FMOD does not
+decode Opus in an .ogg container, and stereo breaks 3D audio. Now Vorbis mono.
