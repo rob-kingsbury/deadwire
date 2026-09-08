@@ -24,15 +24,17 @@ Run it in single player. Anything needing two players is at the bottom, unrun.
 5. The log is `C:\Users\roban\Zomboid\console.txt`. Leave it open in an editor
    that reloads on change, or tell me and I will read it for you.
 
-Turn on the chatty logging first. Half the lines below only print with it on:
+**Leave debug logging off.** `DeadwireConfig.DEBUG` is `false` and should stay
+that way for a first run: it logs a line per tile registration and is most of
+the log volume, and nothing in Parts A to G needs it. Every check below names a
+line that prints without it.
+
+If something fails and the plain log does not say why, turn it on then, for that
+one check:
 
 ```
-DeadwireConfig.DEBUG = true
+scripts/cmd.py run_lua 'code=DeadwireConfig.DEBUG = true'
 ```
-
-Type that in the debug console, or say the word and I will send it through the
-harness (`cd c:/xampp/htdocs/pz-test-pilot`, then
-`scripts/cmd.py run_lua 'code=DeadwireConfig.DEBUG = true'`).
 
 ---
 
@@ -61,6 +63,17 @@ below it in that file never runs, silently.
 `CamoVisibility.lua`, are the ones most likely to throw. `WireActions` derives
 from a vanilla class at load time; if that name is wrong the error names the
 file.
+
+`WireActions.lua` prints nothing with debug logging off, so absence of a line
+proves nothing about it. The check that does is whether the global it defines
+exists:
+
+```
+scripts/cmd.py run_lua 'code=print("[Deadwire] WireActions loaded: " .. tostring(ISDeadwireWireAction ~= nil))'
+```
+
+`false` means the file threw before its last line. The smoke script does this
+for you.
 
 ---
 

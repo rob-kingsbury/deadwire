@@ -5,7 +5,7 @@ project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
 last_session: 22
 last_updated: 2026-09-08
-continue_with: "Rob is launching PZ and leaving it on a loaded save. Drive docs/TEST-PLAN.md through the PZ Test Pilot harness yourself. Do not ask him to perform the steps."
+continue_with: "Build tools/smoke.lua first (no game needed), then STOP and wait for Rob to confirm PZ is up before touching the harness. Parts A and B only. See To Resume for the cost rules."
 blockers: "Nothing is blocked on code. #25 and #12 need the running game Rob is providing; #27 #45 #46 need a decision from him; #13 is a later phase."
 ```
 
@@ -17,31 +17,52 @@ Deadwire v0.1.1, Session 23. Start from origin/main (git pull).
 Tree clean, 7 issues open, nothing in flight. Last code change is 062101e.
 
 ROB IS RUNNING THE GAME FOR YOU. He agreed at the end of Session 22 to launch
-PZ and leave it sitting on a loaded save so you can drive the test plan through
-the harness instead of asking him to perform steps. Do not hand him a checklist.
-Ask only for things a person has to do: launch it, enable the mod, alt-tab away,
-listen for a sound.
+PZ and leave it on a loaded save so you drive the test plan through the harness
+instead of handing him a checklist. Ask him only for things a person has to do:
+launch it, enable the mod, alt-tab away, listen for a sound, look at a colour.
 
-  1. scripts/cmd.py get_status FIRST. `harness_dead` almost always means PZ is
-     PAUSED or ALT-TABBED, not crashed -- the poll loop stops when it loses
-     focus. Wait and retry before telling him anything is wrong.
-  2. Work docs/TEST-PLAN.md in order. Part A is the log check and costs almost
-     nothing; Part B is the createWire path, which has never once been watched.
-     Stop after B and report before going further.
-  3. Read results with `grep '\[Deadwire\]'`, never by reading console.txt.
-     Measured: 29 Deadwire lines, 3.5KB, in a real session. The whole file is
-     724KB of which none of it is ours.
-  4. Sounds and visuals are the two things the harness cannot see. Those are the
-     only checks worth asking Rob to eyeball.
+DO THIS IN THIS ORDER. Step 2 is a hard stop.
+
+  1. BUILD tools/smoke.lua FIRST. No game needed, so do it before he launches.
+     One script that performs every programmatic check in Parts A and B of
+     docs/TEST-PLAN.md and returns ONE LINE PER CHECK, already judged:
+       B4 PASS: tin_can_tripline at 10909,9995,0, kit consumed
+       B6 FAIL: square 10909,9995,0 reports blocked, expected passable
+     The game does the judging. Do not return raw world state for you to reason
+     about in prose -- that is the expensive shape.
+
+  2. STOP AND WAIT. Do not call the harness until Rob says the game is up. He
+     is launching PZ, enabling Deadwire, starting a sandbox save with zombie
+     population OFF, and leaving the window alone. Ask, then wait.
+
+  3. scripts/cmd.py get_status. `harness_dead` almost always means PZ is PAUSED
+     or ALT-TABBED, not crashed -- the poll loop stops when it loses focus.
+     Wait and retry before telling him anything is wrong.
+
+  4. Run the smoke script ONCE. Read the one block it returns. Report one line
+     per check and stop. Do not continue to Parts C-G without him saying so.
+
+COST RULES, agreed with Rob at the end of Session 22. The driver is turn count
+and output tokens, not the cached prefix.
+
+  - One script, not twenty run_lua calls. Parts A and B should be about three
+    turns, not thirty.
+  - LEAVE DeadwireConfig.DEBUG OFF. It logs a line per tile registration and is
+    most of the log volume. Turn it on only after something fails.
+  - Read results with `grep '\[Deadwire\]'`. NEVER read console.txt whole:
+    724KB, roughly 180,000 tokens, and none of it is ours. Measured: a real
+    session leaves 29 Deadwire lines, 3.5KB, and fewer with DEBUG off.
+  - One line per check when reporting. No paragraphs until something fails.
+  - Sonnet is the right model for executing this. Switch up only to diagnose a
+    failure, in the same window so the context carries.
 
 IF THE HARNESS WILL NOT COOPERATE, fall back to #47: eight of the mod's
-fourteen Lua files execute in no test at all, six of them written in Session 22,
-including the whole owner outline. That is the highest-value offline work left
-and it needs no game.
+fourteen Lua files execute in no test at all, six written in Session 22,
+including the whole owner outline. Highest-value offline work left, needs no
+game.
 
 Gates:  python scripts/verify_names.py  |  run_tests.bat (PowerShell, not Git
 Bash)  |  python tools/validate_pack.py
-Plus, unscripted: every mod .lua through `lua -e loadfile`. Part of #47.
 
 Harness: cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status or
 run_lua 'code=<lua>'. cmd.py splits on the FIRST '=' only, so Lua full of '='
