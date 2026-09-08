@@ -105,7 +105,8 @@ Do NOT wait for the user to ask.
 | `.claude/context.md` | Project state, priority, blockers | Session start |
 | `.claude/rules/development-workflow.md` | How we work | Session start |
 | `docs/DESIGN.md` | Game design document | Understanding features |
-| `docs/IMPLEMENTATION-PLAN.md` | Technical plan with code | Before coding |
+| `docs/IMPLEMENTATION-PLAN.md` | Pre-build design proposal, NOT a description of the mod | Before coding, banner first |
+| `docs/TEST-PLAN.md` | In-game checks Rob can run, and what they would prove | Before asking him to test anything |
 
 ---
 

@@ -3,50 +3,40 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 21
-last_updated: 2026-09-06
-continue_with: "Loop until the whole mod is believed-correct on paper, then hand Rob a test plan. Two decisions block the last of it: #36 and #38. Everything else is #42, #44, #29."
-blockers: "#36 and #38 need Rob, not code. #25 needs someone sitting in a running game; nothing in this mod has ever been watched working."
+last_session: 22
+last_updated: 2026-09-08
+continue_with: "Rob runs docs/TEST-PLAN.md in a real game. Everything on paper is done; nothing else is worth building until something has been watched working."
+blockers: "Every remaining issue needs either a running game (#25, #12), a dedicated server (the MP half of #25), or a balance decision from Rob (#27, #45, #13)."
 ```
 
 ## To Resume
 
 ```
-Deadwire v0.1.1, Session 22. Start from origin/main (git pull).
+Deadwire v0.1.1, Session 23. Start from origin/main (git pull).
 
-Last code change is ee2393b; the handoff commit sits on top of it.
-Tree clean, 9 issues open, nothing in flight.
+Tree clean, 5 issues open, nothing in flight. Last code change is 062101e;
+the handoff commit sits on top of it.
 
-Session 21 executed the whole #30 review except the two decisions. Ten issues
-closed: #31 #32 #33 #34 (the mod did not work), #35 #37 #39 #41 (correctness),
-#40 #43 (the checkers were lying).
+Session 22 finished the paper work. Five issues closed: #36 #42 (authority and
+the camouflage entry point), #38 #44 (text down to what ships, orphan labels),
+#29 (owner outline). One new issue, #45, is the behaviour half of #38.
 
-THIS WINDOW, per Rob: keep going until the mod is theoretically correct, then
-stop and produce a test plan he can run in-game. Order:
+THE MOD IS NOW BELIEVED-CORRECT AND STILL UNWATCHED. docs/TEST-PLAN.md is the
+script: seven parts, single player, concrete steps and the exact log lines.
+Part A is five minutes and tells you whether the two new files even load.
 
-  1. Ask Rob the two decisions FIRST, because they change what gets built:
-     - #36 deletes the PlaceWire server handler and its client wrapper. Nothing
-       calls them; the real path is the build action, which the engine already
-       validates server-side. It also adds owner and distance gates to
-       CamouflageWire and RemoveWire.
-     - #38 is not a patch. Wire health, maxSpan and proneDuration are declared
-       and read by no code, so the sandbox tooltips promise behaviour that does
-       not exist. Either the text comes down to what ships, or the behaviour
-       gets built.
-  2. #42 camouflage has no player-facing entry point at all. Twelve sandbox
-     options, CamoVisibility, CamoDegradation, and no way for a player to
-     apply it. Needs a context-menu option, and #36 decides its gating.
-  3. #44 orphan sandbox labels and uncalled functions. Read the labels before
-     deleting; they map what got cut.
-  4. #29 owner outline.
-  5. THEN write the test plan and stop. #25 is the remainder: sounds, camo
-     visibility, camo rain decay, and what happens when a zombie hits a wire.
+Do not build anything else first. Every open issue is now gated on either a
+running game or a decision from Rob, which is the state the whole review was
+aiming at, and building on top of an unrun mod is how this project got here.
 
-Do NOT trust a green test suite on its own. Every fix this session was checked
-by putting the bug back and confirming the tests failed. Do that.
+When Rob has run it: the results close #25 and #12, and whatever it finds is
+the next session.
 
 Gates:  python scripts/verify_names.py  |  run_tests.bat (PowerShell, not Git
 Bash)  |  python tools/validate_pack.py
+Plus, worth adding to the routine: every mod .lua through `lua -e loadfile`.
+14 files, catches a syntax error in the files no test loads (UI, WireActions,
+CamoVisibility, EventHandlers, TriggerHandlers, ClientCommands).
 
 Harness: cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status or
 run_lua 'code=<lua>'. cmd.py splits on the FIRST '=' only, so Lua full of '='
@@ -202,27 +192,63 @@ per wire type with no fallback.
 
 ## Gates
 
-All local, no CI. `run_tests.bat` **187 pass** (PowerShell, not Git Bash —
+All local, no CI. `run_tests.bat` **201 pass** (PowerShell, not Git Bash --
 `cmd //c` fails on the path, not the tests). `python scripts/verify_names.py`
-**271 refs**. `python tools/validate_pack.py` **130 checks**. In-game via PZ
+**308 refs**. `python tools/validate_pack.py` **130 checks**. In-game via PZ
 Test Pilot is partially run; see "What is actually verified" above.
+
+A fourth gate is worth running and is not scripted yet: every mod `.lua`
+through `lua -e "loadfile"`. Six of the fourteen files are loaded by no test,
+so a syntax error in them is invisible until the game refuses the file.
 
 ## Open Issues
 
-Nine open. Titles come from `gh issue list`; only the order lives here.
+Five open, and **every one of them is now blocked on something outside the
+code.** That is the point the review was driving at.
 
-- **Needs Rob first:** #36 (deletes a handler), #38 (a decision, not a patch).
-- **Then:** #42 camouflage has no player-facing entry point, #44 orphan sandbox
-  labels and uncalled functions, #29 owner outline.
-- **Needs a running game:** #25 sounds, camo, rain, triggers. #12 loot injection
-  confirmed 11/11 and needs one real container sighting to close.
-- **Later phases:** #27 Tier 1 balance needs Rob; #13 Tier 3, and there is no
-  adjacency graph yet — compute a circuit id per tile at place and remove time,
-  never on the zombie tick.
+- **Needs a running game:** #25 the smoke test, now scripted in
+  `docs/TEST-PLAN.md`. #12 loot injection is confirmed at 11/11 tables and
+  needs one real container sighting to close.
+- **Needs Rob:** #27 Tier 1 balance. #45 is the behaviour half of #38 -- wire
+  damage, multi-tile spans, tanglefoot wear -- and every part of it is a design
+  call, not a patch.
+- **Later phase:** #13 Tier 3. No adjacency graph yet; compute a circuit id per
+  tile at place and remove time, never on the zombie tick.
 
-Phase 1 (Tier 0 + Tier 1 + camo + sandbox) is where all current work is.
+Phase 1 is code-complete. Nothing in it has been watched working.
 
 ## Recent sessions
+
+### Session 22 (2026-09-08): the paper work finished, and a test plan
+
+Five issues closed in two commits, and the mod stopped being a thing with known
+holes in it. It is now a thing nobody has watched.
+
+**Authority and the way in (de322da).** `PlaceWire` is gone: a server command
+that trusted whatever coordinates it was handed, with no proximity check, that
+nothing ever called. Deleting it took the per-player wire cap and the placement
+log with it, which `verify_names` caught on its own -- two options came back as
+declared-but-unread within a minute. Both moved to `ISDeadwireTripLine:create`,
+the path the engine actually uses. `CamouflageWire` gained the owner check it
+never had, `RemoveWire` gained a distance bound, and camouflage gained a context
+menu, which it had never had at all. Both menu options walk the player to the
+wire and run a timed action, because a context menu opens on any tile on screen
+and the new bound would have refused most clicks.
+
+**Text and outline (4e84ef2, 062101e).** `maxSpan` and `proneDuration` deleted:
+declared per type, read by nothing, and promising spans and prone timers in the
+tooltips. 76 orphan label lines gone from `Sandbox.json`, and `verify_names`
+now refuses a label with no option as well as an option with no label. The rain
+tooltip said "per hour" and the code runs every ten in-game minutes, which is
+the same defect one more time and was found while writing the test plan.
+`PLAN.md` carries a banner naming every place it disagrees with the code.
+Owner outline (#29) walks every wire now, not just camouflaged ones, coloured
+per type.
+
+**The tests grew where the risk was.** 187 to 201. `ISDeadwireTripLine` had no
+tests at all before this, which is exactly why the moved gates could have gone
+missing quietly. Every gate was mutation-checked: bug back in, specific tests
+confirmed failing, six mutations, all six bit.
 
 ### Session 21 (2026-09-06): the review executed, and the checkers made honest
 
