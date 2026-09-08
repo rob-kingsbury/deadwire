@@ -137,3 +137,31 @@ A Fable agent read all 2,136 lines against the installed jar with `javap`, not
 inference. Fourteen findings, eleven confirmed, filed as #31 to #43. Report in
 `docs/REVIEW-30.md`. Established the five run-mode facts above, and found two of
 PLAN.md's own "expected behaviour" lines were fiction.
+
+### Session 21 (2026-09-06): the review executed, and the checkers made honest
+
+Ten issues closed across three commits. The mod's core feature works again.
+
+**The four that broke it (df281ce).** Trip lines only fired when a player was
+already within 3 tiles, because the server checked the *reporter's* distance
+rather than where the zombie was; it now re-derives from `getMovingObjects()` on
+a 3x3 around the wire. Wire placement failed entirely on a dedicated server
+because `new(character, wireType)` put a non-serializable IsoPlayer first.
+`Events.OnPlayerConnect` does not exist, so the join sync never ran once —
+replaced with a client `OnGameStart` request and a targeted reply. Camouflage
+was never written to the save.
+
+**Correctness (0295d6b).** `CamoDegradation` and the wire load were running on
+multiplayer clients; the uncamouflage alpha reset moved into
+`WireNetwork.setCamouflaged` so it runs in single player at all; tanglefoot
+stopped inheriting the 36-second Tier 1 cooldown; Detection stopped leaking one
+modData key per tile crossed; `FALLBACK_SPRITE` deleted.
+
+**The checkers (ee2393b).** `verify_names.py` went from 109 references to 271:
+event names, sound names, the binary `.tiles`, and Java method existence and
+arity. `tests/stubs.lua` no longer invents event names — the allow-list is
+generated from the jar. Deleted `deadwire_01.tiles.txt`, which the game never
+read and which this checker had been verifying instead of the real file. Fixed
+`tools/pz-tilesheet` writing the tiledef id into the tileset-number field.
+
+Older sessions (20 and earlier) are in `.claude/archive/sessions.md`.

@@ -3,82 +3,41 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 23
+last_session: 24
 last_updated: 2026-09-08
-continue_with: "#47 first (offline, no game): eight of fourteen Lua files execute in no test. Then #50 (remnant item on single-use wire destroy), also offline. #49's audio fix needs Rob to relaunch and confirm before it can be called done."
-blockers: "#25 needs another game session for Parts C-G (D-G untouched, C mostly untouched). #27 #45 #46 need a decision from Rob. #51 needs the sprite/tiles pipeline touched, which is art work, not Lua. #48 is a real engine limitation (setOutlineHighlight on an irregular sprite), not a quick fix."
+continue_with: "Push e436ee6, which closes #47. Then #50 (remnant item on single-use wire destroy), offline but blocked on one design decision from Rob. #49's audio fix needs Rob to relaunch and confirm before it can be called done."
+blockers: "#50 #27 #45 #46 need a decision from Rob. #25 needs another game session for Parts C-G (D-G untouched, C mostly untouched). #51 needs the sprite/tiles pipeline touched, which is art work, not Lua. #48 is a real engine limitation (setOutlineHighlight on an irregular sprite), not a quick fix."
 ```
 
 ## To Resume
 
 ```
-Deadwire v0.1.1, Session 24. Start from origin/main (git pull).
+Deadwire v0.1.1, Session 25. Start from origin/main.
 
-Tree clean, 11 issues open. Last code change is the ogg gain boost, this
-session's only commit to Deadwire itself.
+Session 24 closed #47. All fourteen mod .lua files now load in the suite,
+run_tests.bat compiles all fourteen before running it, and 330 tests pass
+(was 201). Commit e436ee6 is LOCAL AND UNPUSHED -- pushing it auto-closes #47.
 
-SESSION 23 RAN THE HARNESS FOR REAL, LIVE, WITH ROB IN THE GAME. Parts A and B
-of docs/TEST-PLAN.md: 24/24 checks pass. First time createWire's actual path
-has ever been watched -- full detail in the #25 comment and Recent Sessions
-below. `run_lua` turned out to have no loadstring on this build (contradicts
-pz-test-pilot's own CLAUDE.md, which says it works -- that repo's note is
-stale, not this project's problem to fix). The fix was two new command
-handlers in pz-test-pilot itself (deadwire_smoke_a/deadwire_smoke_b in
-harness/42/media/lua/client/TestPilot/CmdDeadwireSmoke.lua), not a Deadwire
-code change, and NOT YET COMMITTED in that repo -- it is a separate git repo
-Rob did not ask to be handed off tonight, only flagged so the work is not lost.
+NEXT, NO GAME NEEDED: #50. A destroyed single-use wire leaves nothing on the
+tile, which Rob read as a bug rather than a mechanic. Blocked on one decision:
+what item drops, scrap or the tin can minus its wire. Ask him, do not guess --
+this is a design call, not an API lookup.
 
-WHAT'S BUILDABLE NOW, NO GAME NEEDED, IN PRIORITY ORDER:
+NEEDS ROB IN THE GAME: #49's audio fix is unverified. bell_ring.ogg and
+wire_rattle.ogg were gain-boosted (+4dB, +10dB) after PZ had already loaded
+them, so nothing has confirmed the new bytes were picked up; it needs a
+relaunch and a walk over a wire. tin_can_rattle.ogg is UNCHANGED and already at
+its 0dB ceiling -- getting it louder needs a mastering pass, not a gain knob,
+so batch it with other art work. Parts C to G of docs/TEST-PLAN.md are unrun;
+Session 23 ran A and B only, on purpose.
 
-  1. #47. Eight of fourteen Lua files execute in no test at all, six written
-     in Session 22, including the whole owner outline. `lua -e "loadfile"`
-     every mod .lua and report pass/fail per file -- this is the syntax-only
-     gate `## Gates` below has been missing.
-
-  2. #50. Destroyed single-use wires (tin can, breakOnTrigger=true) leave
-     nothing on the tile. Rob's words: "it just looks like a bug." Add a
-     remnant item drop in DeadwireWireManager.destroyWire or the
-     WireTriggered handler in ServerCommands.lua. Needs a decision on what
-     item (scrap? the tin can itself, minus the wire?) -- ask Rob rather than
-     guessing, this is a design call not an API lookup.
-
-WHAT NEEDS ROB IN THE GAME AGAIN, NOT YET:
-
-  - #49's fix is unverified. bell_ring.ogg and wire_rattle.ogg got gain-
-    boosted (+4dB, +10dB, ffmpeg, mono preserved, no clipping) and synced, but
-    the boost happened mid-session after those files were already loaded, so
-    nothing has actually confirmed PZ picked up the new bytes. Needs a
-    relaunch and a walk-over-a-wire, not a code read.
-  - tin_can_rattle.ogg is UNCHANGED. It already peaks at 0.0dB -- a gain boost
-    would just clip. Getting it louder needs real compression/limiting, a
-    mastering pass, not an ffmpeg one-liner. Closer in kind to sprite art than
-    to code (see rob-avoids-sprite-art-work in project memory) -- batch it
-    rather than doing it alone.
-  - Parts C (mostly), D, E, F, G of docs/TEST-PLAN.md are still unrun. Today
-    only ever ran A and B on purpose, per Rob's own scoping at session start.
-
-HARNESS NOTES FOR NEXT TIME IN-GAME:
-
-  - `loadstring` is off. `run_lua` throws "loadstring unavailable" every time.
-    Use `deadwire_smoke_a`/`deadwire_smoke_b` (already registered) for
-    anything that needs live objects, or `call_function path=X.Y args=[...]`
-    for an existing global taking only primitive args -- but cmd.py's CLI
-    cannot pass a real JSON array through `args=`, it sends the literal string
-    instead and the Lua side throws a ClassCastException. Call `_ipc.send_command`
-    directly from a short Python script when `args` needs to be a real list
-    (see the tile-cleanup calls this session for a working example).
-  - `teleport` is broken in this harness build: `setLx`/`setLy`/`setLz` do not
-    exist on IsoPlayer, throws "Object tried to call nil" every time. Not a
-    Deadwire bug, not fixed this session, walk the player manually instead.
-  - Any NEW command handler needs Rob to fully quit and relaunch PZ before it
-    exists -- Init.lua's requires run once at process boot, not at
-    load-save. A returned save/new-game does not re-run them.
-
-Gates: python scripts/verify_names.py | run_tests.bat (PowerShell, not Git
-Bash) | python tools/validate_pack.py | lua -e "loadfile" every mod .lua
-(#47, not yet scripted -- do that as part of #47, not before it).
-
-Harness: cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status.
+HARNESS (cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status):
+loadstring is off on this build so run_lua always throws -- use the registered
+deadwire_smoke_a / deadwire_smoke_b instead. cmd.py cannot pass a real JSON
+array through args=; call _ipc.send_command from a short Python script for a
+list. teleport is broken (no setLx/setLy/setLz on IsoPlayer); walk the player.
+Any NEW handler needs a full PZ relaunch, not a reloaded save. Session 23's two
+smoke handlers live in pz-test-pilot and are still uncommitted there.
 ```
 
 ## How PZ actually loads and routes mod Lua
@@ -113,16 +72,14 @@ with these, and every guard written before them was written blind.
 Corollary: **`server/` is the wrong place to put a guard.** If a file must not
 run on a multiplayer client, write `if isClient() then return end` inside it.
 
-## What is actually verified in a running game (Session 18)
+## What is actually verified in a running game
 
-Confirmed in a real 42.20 game: harness IPC, item display names, all 4 kits
+Session 18, in a real 42.20 game: harness IPC, item display names, all 4 kits
 spawning, all 4 recipes registered and translated, item and crafting categories
-resolving, `SandboxVars.Deadwire` read through `getSandbox`, loot injection at
-**11/11 tables, chance 12**, and all 10 sprites as distinct 64x128 textures.
-
-**Everything else is unverified**, including the whole `createWire` path —
-Session 18 placed raw `IsoObject`s, never the mod's own `IsoThumpable`.
-`docs/TEST-PLAN.md` is the full list of what that leaves and how to check it.
+resolving, `SandboxVars.Deadwire` via `getSandbox`, loot injection at **11/11
+tables, chance 12**, and all 10 sprites as distinct 64x128 textures. Session 23
+added Parts A and B of `docs/TEST-PLAN.md`, 24/24, including `createWire`'s real
+path. Parts C to G are still unrun and are the list of what that leaves.
 
 ## Sprites
 
@@ -158,11 +115,11 @@ python scripts/verify_names.py          # exit 0 = everything resolves
 ```
 
 Resolves **308** references against the installed 42.20.4: perks, capabilities,
-body parts, `Base.X` items, distribution names, icon PNGs, sprite names, sandbox
+body parts, `Base.X` items, distributions, icon PNGs, sprite names, sandbox
 options **in both directions**, translation filenames, category and page label
-keys, the tiledef id range, event names, sound names, the binary `.tiles`
-header, and Java method existence and arity. `scripts/pzclass.py` is the Java
-`.class` reader underneath and walks the superclass chain.
+keys, the tiledef id range, event and sound names, the binary `.tiles` header,
+and Java method existence and arity. `scripts/pzclass.py` is the `.class` reader
+underneath and walks the superclass chain.
 
 `--update-events` regenerates `tests/pz_events.lua`, the allow-list
 `tests/stubs.lua` uses to refuse an event name the game does not have. The gate
@@ -236,44 +193,38 @@ the player is standing next to it when the server's four-tile bound is checked.
 
 ## Gates
 
-All local, no CI. `run_tests.bat` runs two gates in order and stops on the
-first: `tests/syntax_check.lua` compiles **all 14** mod `.lua` files, then the
-suite runs **330 pass**. PowerShell, not Git Bash -- `cmd //c` fails on the
-path, not the tests. `python scripts/verify_names.py` **308 refs**. `python
+All local, no CI. `run_tests.bat` compiles **all 14** mod `.lua` files
+(`tests/syntax_check.lua`) and stops there on failure, then runs the suite,
+**330 pass**. PowerShell, not Git Bash -- `cmd //c` fails on the path, not the
+tests. `python scripts/verify_names.py` **308 refs**. `python
 tools/validate_pack.py` **130 checks**.
 
-The syntax gate enumerates the mod tree rather than carrying a file list, and
-finding zero files is a failure rather than a pass. It compiles without
-executing, so it cannot catch a file-scope call that throws at runtime; loading
-all fourteen modules in `tests/run.lua` is what catches that.
+The syntax gate enumerates the tree rather than carrying a file list, and
+finding zero files is a failure, not a pass. It compiles without executing, so
+a file-scope call that throws at runtime gets past it; requiring all fourteen
+in `tests/run.lua` is what catches that.
 
 ## Open Issues
 
 Ten open. #47 closed in Session 24; all fourteen mod files now load and run in
 the suite.
 
-- **Buildable now, no game needed:** #50 destroyed single-use wires leave no
-  remnant -- needs a decision on what item, not an API lookup.
-- **Next session, with the game Rob is providing:** #25 the smoke test (Parts A
-  and B done at Session 23, C-G still open). #12 loot injection is confirmed at
-  11/11 tables, reconfirmed live at Session 23, and needs one real container
-  sighting to close. #49 the tin can trigger sound was too quiet -- two of
-  three sound assets gain-boosted, unverified whether the boost actually took
-  in a running game.
-- **Needs Rob:** #27 Tier 1 balance (bell and reinforced are the same wire with
-  a different noise). #45 wire damage, spans and tanglefoot wear. #46 camouflage
-  materials, one grass or hay plus one twigs, item names already verified. My
-  recommendation is a comment on #27 and #45; #46 is written as Rob decided it.
-- **Art/audio, not Lua:** #48 the owner/camo outline box is sized to the
-  object's engine bounds, not the sprite art -- a real setOutlineHighlight
-  limitation on an irregular sprite, not a quick fix. #51 the wire sprite
-  draws in front of the character -- needs the tiles pipeline touched.
+- **No game needed:** #50 destroyed single-use wires leave no remnant -- needs
+  a decision on what item, not an API lookup.
+- **With the game:** #25 smoke test (A and B done Session 23, C-G open). #12
+  loot injection confirmed at 11/11 tables, needs one real container sighting.
+  #49 the tin can trigger sound was too quiet; two of three assets gain-boosted,
+  the boost itself unverified in a running game.
+- **Needs a decision from Rob:** #27 Tier 1 balance (bell and reinforced are the
+  same wire with a different noise). #45 wire damage, spans and tanglefoot wear.
+  #46 camouflage materials, item names already verified. My recommendation is a
+  comment on #27 and #45; #46 is written as Rob decided it.
+- **Art/audio, not Lua:** #48 the outline box is sized to the object's engine
+  bounds, not the sprite art, a real setOutlineHighlight limitation. #51 the
+  wire sprite draws in front of the character, needs the tiles pipeline.
   tin_can_rattle.ogg needs a mastering pass, already at its gain ceiling.
 - **Later phase:** #13 Tier 3. No adjacency graph yet; compute a circuit id per
   tile at place and remove time, never on the zombie tick.
-
-Phase 1 is code-complete. Session 23 watched most of it working for the first
-time.
 
 ## Recent sessions
 
@@ -347,31 +298,3 @@ coloured per type.
 **The tests grew where the risk was.** 187 to 201. `ISDeadwireTripLine` had no
 tests at all before this, which is exactly why the moved gates could have gone
 missing quietly. Six mutations, all six bit.
-
-### Session 21 (2026-09-06): the review executed, and the checkers made honest
-
-Ten issues closed across three commits. The mod's core feature works again.
-
-**The four that broke it (df281ce).** Trip lines only fired when a player was
-already within 3 tiles, because the server checked the *reporter's* distance
-rather than where the zombie was; it now re-derives from `getMovingObjects()` on
-a 3x3 around the wire. Wire placement failed entirely on a dedicated server
-because `new(character, wireType)` put a non-serializable IsoPlayer first.
-`Events.OnPlayerConnect` does not exist, so the join sync never ran once —
-replaced with a client `OnGameStart` request and a targeted reply. Camouflage
-was never written to the save.
-
-**Correctness (0295d6b).** `CamoDegradation` and the wire load were running on
-multiplayer clients; the uncamouflage alpha reset moved into
-`WireNetwork.setCamouflaged` so it runs in single player at all; tanglefoot
-stopped inheriting the 36-second Tier 1 cooldown; Detection stopped leaking one
-modData key per tile crossed; `FALLBACK_SPRITE` deleted.
-
-**The checkers (ee2393b).** `verify_names.py` went from 109 references to 271:
-event names, sound names, the binary `.tiles`, and Java method existence and
-arity. `tests/stubs.lua` no longer invents event names — the allow-list is
-generated from the jar. Deleted `deadwire_01.tiles.txt`, which the game never
-read and which this checker had been verifying instead of the real file. Fixed
-`tools/pz-tilesheet` writing the tiledef id into the tileset-number field.
-
-Older sessions (20 and earlier) are in `.claude/archive/sessions.md`.
