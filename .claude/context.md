@@ -5,8 +5,8 @@ project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
 last_session: 22
 last_updated: 2026-09-08
-continue_with: "Rob runs docs/TEST-PLAN.md in a real game. Everything on paper is done; nothing else is worth building until something has been watched working."
-blockers: "Every remaining issue needs either a running game (#25, #12) or a decision from Rob (#27, #45, #46, #13). None of them is blocked on code."
+continue_with: "Rob is launching PZ and leaving it on a loaded save. Drive docs/TEST-PLAN.md through the PZ Test Pilot harness yourself. Do not ask him to perform the steps."
+blockers: "Nothing is blocked on code. #25 and #12 need the running game Rob is providing; #27 #45 #46 need a decision from him; #13 is a later phase."
 ```
 
 ## To Resume
@@ -14,36 +14,38 @@ blockers: "Every remaining issue needs either a running game (#25, #12) or a dec
 ```
 Deadwire v0.1.1, Session 23. Start from origin/main (git pull).
 
-Tree clean, 6 issues open, nothing in flight. Last code change is 062101e;
-the handoff commit sits on top of it.
+Tree clean, 7 issues open, nothing in flight. Last code change is 062101e.
 
-Session 22 finished the paper work. Five closed: #36 #42 (authority and the
-camouflage entry point), #38 #44 (text down to what ships, orphan labels), #29
-(owner outline). Two filed: #45 the behaviour half of #38, #46 camouflage
-materials. Recommendations for #45 and #27 are recorded as comments on those
-issues, awaiting Rob's call.
+ROB IS RUNNING THE GAME FOR YOU. He agreed at the end of Session 22 to launch
+PZ and leave it sitting on a loaded save so you can drive the test plan through
+the harness instead of asking him to perform steps. Do not hand him a checklist.
+Ask only for things a person has to do: launch it, enable the mod, alt-tab away,
+listen for a sound.
 
-THE MOD IS NOW BELIEVED-CORRECT AND STILL UNWATCHED. docs/TEST-PLAN.md is the
-script: seven parts, single player, concrete steps and the exact log lines.
-Part A is five minutes and tells you whether the two new files even load.
+  1. scripts/cmd.py get_status FIRST. `harness_dead` almost always means PZ is
+     PAUSED or ALT-TABBED, not crashed -- the poll loop stops when it loses
+     focus. Wait and retry before telling him anything is wrong.
+  2. Work docs/TEST-PLAN.md in order. Part A is the log check and costs almost
+     nothing; Part B is the createWire path, which has never once been watched.
+     Stop after B and report before going further.
+  3. Read results with `grep '\[Deadwire\]'`, never by reading console.txt.
+     Measured: 29 Deadwire lines, 3.5KB, in a real session. The whole file is
+     724KB of which none of it is ours.
+  4. Sounds and visuals are the two things the harness cannot see. Those are the
+     only checks worth asking Rob to eyeball.
 
-Do not build anything else first. Every open issue is gated on a running game
-or a decision from Rob, which is the state the whole review was aiming at, and
-building on top of an unrun mod is how this project got here.
-
-When Rob has run it: the results close #25 and #12, and whatever it finds is
-the next session.
+IF THE HARNESS WILL NOT COOPERATE, fall back to #47: eight of the mod's
+fourteen Lua files execute in no test at all, six of them written in Session 22,
+including the whole owner outline. That is the highest-value offline work left
+and it needs no game.
 
 Gates:  python scripts/verify_names.py  |  run_tests.bat (PowerShell, not Git
 Bash)  |  python tools/validate_pack.py
-Plus, worth adding to the routine: every mod .lua through `lua -e loadfile`.
-14 files, catches a syntax error in the six no test loads (UI, WireActions,
-CamoVisibility, EventHandlers, TriggerHandlers, ClientCommands).
+Plus, unscripted: every mod .lua through `lua -e loadfile`. Part of #47.
 
 Harness: cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status or
 run_lua 'code=<lua>'. cmd.py splits on the FIRST '=' only, so Lua full of '='
-is safe. `harness_dead` almost always means PZ is PAUSED or ALT-TABBED, not
-crashed; the poll loop stops when it loses focus, so wait and retry first.
+is safe.
 ```
 
 ## How PZ actually loads and routes mod Lua
@@ -211,12 +213,14 @@ so a syntax error in them is invisible until the game refuses the file.
 
 ## Open Issues
 
-Six open, and **every one is blocked on something outside the code.** That is
-the point the review was driving at.
+Seven open. Only #47 can be worked without either the game or a decision.
 
-- **Needs a running game:** #25 the smoke test, now scripted in
-  `docs/TEST-PLAN.md`. #12 loot injection is confirmed at 11/11 tables and needs
-  one real container sighting to close.
+- **Next session, with the game Rob is providing:** #25 the smoke test, scripted
+  in `docs/TEST-PLAN.md`. #12 loot injection is confirmed at 11/11 tables and
+  needs one real container sighting to close.
+- **Buildable now, no game needed:** #47 eight of fourteen Lua files execute in
+  no test. Six were written in Session 22, including the whole owner outline.
+  The fallback if the harness will not run.
 - **Needs Rob:** #27 Tier 1 balance (bell and reinforced are the same wire with
   a different noise). #45 wire damage, spans and tanglefoot wear. #46 camouflage
   materials, one grass or hay plus one twigs, item names already verified. My
