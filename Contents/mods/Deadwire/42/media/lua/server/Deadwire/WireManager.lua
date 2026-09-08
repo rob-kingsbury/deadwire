@@ -135,6 +135,50 @@ function DeadwireWireManager.destroyWire(x, y, z)
 end
 
 -----------------------------------------------------------
+-- Salvage
+--
+-- Deliberately NOT inside destroyWire. Both callers destroy a wire and they
+-- want different things left behind: a player pulling their own wire up gets
+-- the kit back whole, and a wire something walked into scatters a fraction of
+-- its durable parts. Folding this into destroyWire would give one of them the
+-- wrong answer, and destroyWire is also called from paths that should drop
+-- nothing at all.
+--
+-- Returns the number of items dropped, so a caller can log an empty result
+-- rather than guess at it.
+-----------------------------------------------------------
+
+function DeadwireWireManager.salvageWire(wireType, sq)
+    if not sq then return 0 end
+
+    local parts = DeadwireConfig.Salvage[wireType]
+    if not parts then
+        DeadwireConfig.log("salvageWire: no salvage list for " .. tostring(wireType)
+            .. ", nothing will be left on the tile")
+        return 0
+    end
+
+    -- One roll for the whole wire, not one per slot. Half a trip line is half
+    -- of everything, which is what a player reads off the ground; independent
+    -- rolls per slot would average out and never look like a bad break.
+    local percent = DeadwireConfig.rollSalvagePercent()
+
+    local x, y, z = sq:getX(), sq:getY(), sq:getZ()
+    local dropped = 0
+    for _, part in ipairs(parts) do
+        local n = math.floor(part.count * percent / 100)
+        for _ = 1, n do
+            sq:AddWorldInventoryItem(part.item, 0.0, 0.0, 0.0)
+            dropped = dropped + 1
+        end
+    end
+
+    DeadwireConfig.debugLog("salvageWire: " .. tostring(wireType) .. " at "
+        .. x .. "," .. y .. "," .. z .. " rolled " .. percent .. "%, dropped " .. dropped)
+    return dropped
+end
+
+-----------------------------------------------------------
 -- Persistence: Save
 -----------------------------------------------------------
 

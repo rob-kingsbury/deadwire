@@ -152,8 +152,25 @@ handlers["RemoveWire"] = function(player, args)
         return
     end
 
+    -- Remember the type before the entry goes away.
+    local wireType = wire.wireType
+
     -- Destroy IsoThumpable + unregister + remove from save
     DeadwireWireManager.destroyWire(args.x, args.y, args.z)
+
+    -- Taking your own wire back up returns the kit whole. This is deliberately
+    -- not the salvage roll a destroyed wire gets: the roll exists because a
+    -- line something walked into came apart, and making a careful pickup a
+    -- gamble too would punish doing it properly. It also sidesteps the
+    -- question of which cord the kit was built with, since the kit itself is
+    -- what comes back.
+    local kitItem = DeadwireConfig.KitItems[wireType]
+    if kitItem then
+        player:getInventory():AddItem(kitItem)
+    else
+        DeadwireConfig.log("RemoveWire: " .. tostring(wireType)
+            .. " has no kit item, nothing returned to " .. username)
+    end
 
     sendServerCommand(DeadwireConfig.MODULE, "WireDestroyed", {
         x = args.x,
@@ -213,8 +230,12 @@ handlers["WireTriggered"] = function(player, args)
     -- State changes based on wire type
     local cooldownSeconds = nil
     if DeadwireConfig.breaksOnTrigger(wireType) then
-        -- Single-use: destroy wire
+        -- Single-use: destroy wire, and leave a fraction of its durable parts
+        -- on the tile. An empty tile reads as the wire having vanished, which
+        -- looks like a bug rather than a wire that came apart.
+        local sq = getWorld():getCell():getGridSquare(args.x, args.y, args.z)
         DeadwireWireManager.destroyWire(args.x, args.y, args.z)
+        DeadwireWireManager.salvageWire(wireType, sq)
         sendServerCommand(DeadwireConfig.MODULE, "WireDestroyed", {
             x = args.x,
             y = args.y,

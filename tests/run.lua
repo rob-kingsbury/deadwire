@@ -58,6 +58,7 @@ dofile("tests/test_trigger_handlers.lua")
 dofile("tests/test_camo_degradation.lua")
 dofile("tests/test_loot_distribution.lua")
 dofile("tests/test_event_handlers.lua")
+dofile("tests/test_salvage.lua")
 
 -- Print final results (exits with code 1 if any failures)
 results()

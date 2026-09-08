@@ -230,3 +230,17 @@ option Deadwire.OwnerWireOutline
     page = Deadwire,
     translation = Deadwire_OwnerWireOutline,
 }
+
+option Deadwire.SalvageMinPercent
+{
+    type = integer, default = 0, min = 0, max = 100,
+    page = Deadwire,
+    translation = Deadwire_SalvageMinPercent,
+}
+
+option Deadwire.SalvageMaxPercent
+{
+    type = integer, default = 60, min = 0, max = 100,
+    page = Deadwire,
+    translation = Deadwire_SalvageMaxPercent,
+}

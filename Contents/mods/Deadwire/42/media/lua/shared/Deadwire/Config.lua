@@ -126,6 +126,60 @@ DeadwireConfig.KitItems = {
 }
 
 -----------------------------------------------------------
+-- Salvage: what a destroyed wire leaves on the tile
+--
+-- A destroyed single-use wire used to leave nothing at all, which reads as a
+-- bug rather than a mechanic (Rob, Session 23: "it just looks like a bug").
+--
+-- Only the durable parts are listed. The cord is what snapped -- that is why
+-- the wire is destroyed -- so it never comes back. That is also why there is
+-- no ambiguity here: the recipes accept any of fishing line, twine or electric
+-- wire in that slot and the kit does not record which one the player used, so
+-- a cord refund would have to invent an answer. The thing that broke is the
+-- thing you do not get back.
+--
+-- Where a durable slot is still a choice (tanglefoot takes any of five
+-- branch-like items), one canonical item stands in for the slot. TreeBranch2
+-- is the real 42.20 name; Base.TreeBranch does not exist.
+--
+-- Deliberate removal does NOT use this table. It returns the whole kit,
+-- because carefully picking your own wire back up should not be a gamble.
+-- See the RemoveWire handler in ServerCommands.lua.
+-----------------------------------------------------------
+DeadwireConfig.Salvage = {
+    tin_can_tripline = {
+        { item = "Base.TinCanEmpty", count = 3 },
+        { item = "Base.Nails",       count = 2 },
+    },
+    reinforced_tripline = {
+        { item = "Base.Wire",        count = 1 },
+        { item = "Base.TinCanEmpty", count = 3 },
+        { item = "Base.Nails",       count = 2 },
+    },
+    bell_tripline = {
+        { item = "Base.Wire",  count = 1 },
+        { item = "Base.Bell",  count = 1 },
+        { item = "Base.Nails", count = 2 },
+    },
+    tanglefoot = {
+        { item = "Base.TreeBranch2", count = 3 },
+        { item = "Base.Nails",       count = 2 },
+    },
+}
+
+-- One roll per destroyed wire, applied to every slot in its salvage list.
+-- 0 means the line was wrecked, 100 means it came apart cleanly and everything
+-- durable survived. The default ceiling is deliberately below 100: a wire that
+-- was destroyed by something walking into it should usually cost you
+-- materials, or there is no reason to prefer picking it up by hand.
+function DeadwireConfig.rollSalvagePercent()
+    local minPct = DeadwireConfig.getSandbox("SalvageMinPercent", 0)
+    local maxPct = DeadwireConfig.getSandbox("SalvageMaxPercent", 60)
+    if maxPct < minPct then maxPct = minPct end
+    return minPct + ZombRand(maxPct - minPct + 1)
+end
+
+-----------------------------------------------------------
 -- Sound Names
 -----------------------------------------------------------
 DeadwireConfig.Sounds = {

@@ -1,107 +1,77 @@
 {
     "Sandbox_Deadwire": "Deadwire",
-
     "Sandbox_Deadwire_EnableMod": "Enable Deadwire mod",
     "Sandbox_Deadwire_EnableMod_tooltip": "Master switch. Turns off all Deadwire mechanics when disabled. Wires already placed remain in the world but stop functioning.",
-
     "Sandbox_Deadwire_EnableTier0": "Allow tin can trip lines (Tier 0, no skill)",
     "Sandbox_Deadwire_EnableTier0_tooltip": "Tin cans on fishing line or twine. No skill required. The most basic alarm available on day one.",
-
     "Sandbox_Deadwire_EnableTier1": "Allow reinforced trip lines and bells (Tier 1)",
     "Sandbox_Deadwire_EnableTier1_tooltip": "Wire-based reusable trip lines and bell noisemakers. Requires Carpentry 2 + Trapping 2.",
-
     "Sandbox_Deadwire_EnableCamouflage": "Allow players to camouflage wires",
     "Sandbox_Deadwire_EnableCamouflage_tooltip": "Players can hide placed wires using foraged materials. Other players need Foraging skill to spot them. Turn off for visible-only wires.",
-
     "Sandbox_Deadwire_WireMaxPerPlayer": "Max placed wires per player",
     "Sandbox_Deadwire_WireMaxPerPlayer_tooltip": "Limits how many wires a single player can have placed at once. Prevents lag from excessive objects.",
-
     "Sandbox_Deadwire_WireAffectsZombies": "Wires trigger on zombie contact",
     "Sandbox_Deadwire_WireAffectsZombies_tooltip": "When enabled, zombies walking through a wire will trigger it. Disable to make wires player-only (PvP traps).",
-
     "Sandbox_Deadwire_WireAffectsPlayers": "Wires trigger on player contact",
     "Sandbox_Deadwire_WireAffectsPlayers_tooltip": "When enabled, players walking through a wire will trigger it. Disable for PvE-only servers where wires should only affect zombies.",
-
     "Sandbox_Deadwire_SoundMultiplier": "Global sound radius multiplier",
     "Sandbox_Deadwire_SoundMultiplier_tooltip": "Scales all Deadwire sound radii up or down. At 2.0 everything is heard twice as far. Affects zombie attraction distance.",
-
     "Sandbox_Deadwire_TinCanBreakOnTrigger": "Tin can trip lines are single-use",
     "Sandbox_Deadwire_TinCanBreakOnTrigger_tooltip": "When enabled, tin can trip lines break after one trigger. Disable to make them reusable.",
-
     "Sandbox_Deadwire_TripLineHealth": "Tin can wire durability",
     "Sandbox_Deadwire_TripLineHealth_tooltip": "Hit points a placed tin can trip line is created with. Nothing damages wires yet, so this has no effect in play until it does.",
-
     "Sandbox_Deadwire_ReinforcedHealth": "Reinforced wire durability",
     "Sandbox_Deadwire_ReinforcedHealth_tooltip": "Hit points a placed reinforced trip line is created with. Nothing damages wires yet, so this has no effect in play until it does.",
-
     "Sandbox_Deadwire_PlayerTripDamage": "Damage dealt to players who trip a wire",
     "Sandbox_Deadwire_PlayerTripDamage_tooltip": "How much foot damage a player takes walking into tanglefoot. Trip lines do no damage. Set to 0 for stumble only.",
-
     "Sandbox_Deadwire_PlayerTripStumble": "Players stumble when tripping a wire",
     "Sandbox_Deadwire_PlayerTripStumble_tooltip": "Players stagger when they walk into tanglefoot. Trip lines only make noise.",
-
     "Sandbox_Deadwire_TanglefootTripChance": "Chance a zombie trips per tile (%)",
     "Sandbox_Deadwire_TanglefootTripChance_tooltip": "Each tile of tanglefoot has this percentage chance of tripping a zombie that walks through it.",
-
     "Sandbox_Deadwire_TanglefootAffectsCrawlers": "Tanglefoot affects crawling zombies",
     "Sandbox_Deadwire_TanglefootAffectsCrawlers_tooltip": "Crawlers are already on the ground. Enable to make tanglefoot still slow them down.",
-
     "Sandbox_Deadwire_CamoDetectLevelLow": "Foraging level for faint shimmer detection",
     "Sandbox_Deadwire_CamoDetectLevelLow_tooltip": "Players at or above this Foraging level see camouflaged wires as a faint shimmer at close range.",
-
     "Sandbox_Deadwire_CamoDetectLevelMid": "Foraging level for semi-visible detection",
     "Sandbox_Deadwire_CamoDetectLevelMid_tooltip": "Players at or above this Foraging level see camouflaged wires as semi-transparent at moderate range.",
-
     "Sandbox_Deadwire_CamoDetectLevelFull": "Foraging level for full visibility + outline",
     "Sandbox_Deadwire_CamoDetectLevelFull_tooltip": "Players at or above this Foraging level see camouflaged wires clearly with a colored outline highlight.",
-
     "Sandbox_Deadwire_CamoDetectRangeLow": "Detection range for faint shimmer (tiles)",
     "Sandbox_Deadwire_CamoDetectRangeLow_tooltip": "How close a player must be to see the faint shimmer of a camouflaged wire.",
-
     "Sandbox_Deadwire_CamoDetectRangeMid": "Detection range for semi-visible (tiles)",
     "Sandbox_Deadwire_CamoDetectRangeMid_tooltip": "How close a player must be to see a camouflaged wire as semi-transparent.",
-
     "Sandbox_Deadwire_CamoDetectRangeFull": "Detection range for full visibility (tiles)",
     "Sandbox_Deadwire_CamoDetectRangeFull_tooltip": "How close a player must be to see a camouflaged wire with full clarity and outline.",
-
     "Sandbox_Deadwire_CamoMaxDurability": "Camouflage starting durability",
     "Sandbox_Deadwire_CamoMaxDurability_tooltip": "Fresh camouflage starts with this much durability. Higher values mean it lasts longer before wearing off.",
-
     "Sandbox_Deadwire_CamoRainDegradeRate": "Camouflage durability lost per ten minutes of rain",
     "Sandbox_Deadwire_CamoRainDegradeRate_tooltip": "Checked every ten in-game minutes while it is raining, and scaled by how hard. Fresh camouflage starts at 100, so at the default a wire is bare after a few hours of steady rain. Set to 0 to disable rain degradation.",
-
     "Sandbox_Deadwire_CamoStormMultiplier": "Storm degradation multiplier",
     "Sandbox_Deadwire_CamoStormMultiplier_tooltip": "During thunderstorms, camouflage degrades this many times faster than normal rain.",
-
     "Sandbox_Deadwire_CamoTriggerDegrade": "Camouflage durability lost per wire trigger",
     "Sandbox_Deadwire_CamoTriggerDegrade_tooltip": "Each time a camouflaged wire triggers, the camouflage wears down by this amount.",
-
     "Sandbox_Deadwire_OwnerWireOutline": "Owner and faction see an outline on their own wires",
     "Sandbox_Deadwire_OwnerWireOutline_tooltip": "The player who placed a wire, and anyone in their faction, sees it drawn with a coloured outline. Applies to every wire they own, camouflaged or not, and the colour says which type it is.",
-
     "Sandbox_Deadwire_CamoVisibleToOwner": "Owner always sees their own camouflaged wires",
     "Sandbox_Deadwire_CamoVisibleToOwner_tooltip": "The player who placed a wire always sees it regardless of camouflage. Disable for full blindness.",
-
     "Sandbox_Deadwire_FriendlyFireWires": "Faction members trigger each other's wires",
     "Sandbox_Deadwire_FriendlyFireWires_tooltip": "When enabled, walking through a faction mate's wire triggers it. Disable so faction members pass through safely.",
-
     "Sandbox_Deadwire_WireOwnerImmunity": "Wire placer is immune to their own wires",
     "Sandbox_Deadwire_WireOwnerImmunity_tooltip": "The player who placed a wire can walk through it without triggering. Does not apply to other faction members.",
-
     "Sandbox_Deadwire_AdminBypassCamo": "Admins always see all camouflaged wires",
     "Sandbox_Deadwire_AdminBypassCamo_tooltip": "Server admins see every camouflaged wire regardless of Foraging level.",
-
     "Sandbox_Deadwire_LogWirePlacements": "Log wire placements to server log",
     "Sandbox_Deadwire_LogWirePlacements_tooltip": "Every time a player places a wire, it gets written to the server log with coordinates and username.",
-
     "Sandbox_Deadwire_LogWireTriggers": "Log wire triggers to server log",
     "Sandbox_Deadwire_LogWireTriggers_tooltip": "Every time a wire triggers, it gets written to the server log. Generates a lot of output.",
-
     "Sandbox_Deadwire_BellSpawnRate": "How often bells appear in loot",
     "Sandbox_Deadwire_BellSpawnRate_tooltip": "Controls how commonly bells show up in churches, schools, farms, and reception areas.",
     "Sandbox_Deadwire_BellSpawnRate_option1": "Rare",
     "Sandbox_Deadwire_BellSpawnRate_option2": "Moderate",
     "Sandbox_Deadwire_BellSpawnRate_option3": "Common",
-    "Sandbox_Deadwire_BellSpawnRate_option4": "Abundant"
-
+    "Sandbox_Deadwire_BellSpawnRate_option4": "Abundant",
+    "Sandbox_Deadwire_SalvageMinPercent": "Minimum salvage from a destroyed wire (%)",
+    "Sandbox_Deadwire_SalvageMinPercent_tooltip": "Lowest share of a destroyed wire's durable parts left on the tile. One roll per wire, between this and the maximum. Zero means the line can be a total loss. Cord is never returned: it is what snapped.",
+    "Sandbox_Deadwire_SalvageMaxPercent": "Maximum salvage from a destroyed wire (%)",
+    "Sandbox_Deadwire_SalvageMaxPercent_tooltip": "Highest share of a destroyed wire's durable parts left on the tile. Set below 100 so that taking a wire back up by hand, which always returns the whole kit, stays the better option."
 }

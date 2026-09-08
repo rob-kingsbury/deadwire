@@ -106,6 +106,16 @@ function _makeSquare(x, y, z)
         end,
         RecalcAllWithNeighbours = function() end,
 
+        -- Items dropped on the tile. Real signature is
+        -- AddWorldInventoryItem(fullType, x, y, z) and it takes 4, 5 or 6
+        -- arguments; we call the 4-arg form. Recorded rather than discarded,
+        -- because "a destroyed wire leaves something behind" is the whole
+        -- point of the salvage path and an empty tile is the bug it fixes.
+        _worldItems = {},
+        AddWorldInventoryItem = function(self, fullType, ox, oy, oz)
+            table.insert(self._worldItems, fullType)
+        end,
+
         -- What ISDeadwireTripLine:isValid asks a square. Both start in the
         -- state that lets a wire be placed; a test that cares about refusal
         -- sets the field itself, so neither answer is invented here.
@@ -422,6 +432,14 @@ local function _makeInventory()
             get  = function(_, i) return found[i + 1] end,
         }
     end
+    -- Real ItemContainer:AddItem takes a fullType string and returns the item.
+    -- The salvage path hands a kit straight back to the player who pulled a
+    -- wire up, so this has to actually add rather than no-op.
+    inv.AddItem = function(self, fullType)
+        local item = { fullType = fullType }
+        table.insert(self._items, item)
+        return item
+    end
     inv.Remove = function(self, item)
         for i, it in ipairs(self._items) do
             if it == item then table.remove(self._items, i); return end
@@ -691,12 +709,40 @@ function _setRainIntensity(v) _rainIntensity = v end
 -----------------------------------------------------------------
 -- ZombRand
 --
--- Real ZombRand(n) returns an integer in [0, n-1]. Fixed rather than random:
--- a trip-chance test that rolls real dice proves nothing repeatable.
+-- Real ZombRand(n) returns an integer in [0, n-1]. Scripted rather than
+-- random: a trip-chance test that rolls real dice proves nothing repeatable.
+--
+-- _setZombRand takes one value, or several that it then cycles through. The
+-- sequence form is not a luxury: a stub that answers the same number forever
+-- cannot tell one roll shared across a wire apart from one roll per part, and
+-- it silently blessed exactly that bug in the salvage code.
+--
+-- A bound below 1 is refused rather than answered. The real ZombRand takes a
+-- positive bound, and a negative one here always means a range was computed
+-- backwards somewhere upstream -- which is a bug worth failing on, not one to
+-- paper over with Lua's modulo happening to return 0.
 -----------------------------------------------------------------
-local _zombRandValue = 0
-function ZombRand(n) return _zombRandValue % (n or 1) end
-function _setZombRand(v) _zombRandValue = v end
+local _zombRandValues = { 0 }
+local _zombRandIndex = 0
+
+function ZombRand(n)
+    if type(n) ~= "number" or n < 1 then
+        error("ZombRand(" .. tostring(n) .. ") -- the real one takes a positive\n"
+            .. "bound. A bound below 1 means a range was computed backwards\n"
+            .. "before it got here.", 2)
+    end
+    _zombRandIndex = _zombRandIndex + 1
+    local v = _zombRandValues[((_zombRandIndex - 1) % #_zombRandValues) + 1]
+    return v % n
+end
+
+-- One value, or a sequence to cycle through on successive calls.
+function _setZombRand(...)
+    local vals = { ... }
+    if #vals == 0 then vals = { 0 } end
+    _zombRandValues = vals
+    _zombRandIndex = 0
+end
 
 -----------------------------------------------------------------
 -- ProceduralDistributions
@@ -748,7 +794,8 @@ function _reset()
     _specificPlayers = {}
     _isAdmin = false
     _rainIntensity = 0
-    _zombRandValue = 0
+    _zombRandValues = { 0 }
+    _zombRandIndex = 0
     ProceduralDistributions.list = {}
     SandboxVars = { Deadwire = {} }
     -- Reset WireNetwork internal state (if loaded)
