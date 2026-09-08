@@ -223,3 +223,10 @@ option Deadwire.CamoDetectRangeFull
     page = Deadwire,
     translation = Deadwire_CamoDetectRangeFull,
 }
+
+option Deadwire.OwnerWireOutline
+{
+    type = boolean, default = true,
+    page = Deadwire,
+    translation = Deadwire_OwnerWireOutline,
+}

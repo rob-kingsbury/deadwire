@@ -185,6 +185,9 @@ function DeadwireNetwork.setCamouflaged(x, y, z, camouflaged, durability)
         if wasCamouflaged and entry.isoObject then
             entry.isoObject:setAlphaAndTarget(1.0)
             entry.isoObject:setOutlineHighlight(false)
+            -- Keep CamoVisibility's own record of what it outlined honest, or
+            -- it believes an outline is up that this line just took down.
+            entry.dwOutlined = false
         end
     end
 end

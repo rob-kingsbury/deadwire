@@ -2,6 +2,34 @@
 
 Based on comprehensive research of the B42 Lua API, crafting system, electrical system, multiplayer architecture, and existing mod patterns. Every technical decision below is grounded in confirmed-working B42 APIs.
 
+> **This is the design proposal, written before any of it was built. It is not a
+> description of the mod.** Two of its "expected behaviour" lines turned out to
+> be fiction when the code was read against the jar in Session 20, and #38 found
+> more, so every section below describes what was intended rather than what
+> ships. Where they disagree, the code and `sandbox-options.txt` win, and
+> `python scripts/verify_names.py` is what enforces that.
+>
+> Known and deliberate differences, as of Session 22:
+>
+> - **Wires are one tile.** `TripLineMaxSpan` and `ReinforcedMaxSpan` were
+>   declared and read by nothing, and are gone. Multi-tile runs are #45.
+> - **Nothing damages a wire.** `createWire` calls `setIsThumpable(false)` so
+>   zombies pass through rather than attack, and no code path reduces health.
+>   `TripLineHealth` and `ReinforcedHealth` set a number the game never spends.
+> - **Tanglefoot has no prone timer and no wear.** `knockDown(false)` uses
+>   vanilla get-up timing; `proneDuration` is gone. Nothing degrades its
+>   durability. Both are #45.
+> - **`PlayerTripDamage` and `PlayerTripStumble` are tanglefoot only.** Trip
+>   lines make noise and nothing else.
+> - **There is no PlaceWire command.** Placement is `ISDeadwireTripLine` in
+>   `server/BuildActions.lua`, which the engine validates and performs. The
+>   sketch under System 1 below is not how it works (#36).
+> - **Camouflage has no materials or skill check.** The context menu applies it
+>   for free. Step-over and disarm were never built.
+> - **The sandbox reference lists about seventy options; thirty-three exist.**
+>   `sandbox-options.txt` is the list.
+
+
 ---
 
 ## Research Summary: What We Know Works
@@ -136,9 +164,15 @@ function ISDeadwireTripLine:create(x, y, z, north, sprite)
 end
 ```
 
+This is not how placement works. `ISDeadwireTripLine:create` builds the object
+itself, on the server, because the engine calls it there; the `PlaceWire` command
+below was written, never called by anything, and deleted in #36 as a second
+placement path that trusted whatever coordinates it was handed. `setIsThumpable`
+ships as `false`, not `true`, so wires stay transparent to pathfinding. Kept
+here because the shape of the client/server split is still right.
+
 ```lua
--- ServerCommands.lua (server)
--- Server validates and creates the IsoThumpable
+-- ServerCommands.lua (server) -- NEVER SHIPPED, see #36
 local function handlePlaceWire(player, args)
     -- Validate player has materials
     -- Validate location is valid (adjacent to anchor)
@@ -529,12 +563,12 @@ Events.OnServerCommand.Add(onServerCommand)
 3. **Reinforced**: Place reinforced wire. Verify it survives trigger, resets cooldown.
 4. **Bell**: Find/spawn bell. Craft bell trip line. Verify louder sound radius.
 5. **MP sync**: Two players. Player A places wire. Player B sees it. Zombie triggers it. Both players hear sound.
-6. **Destruction**: Zombie horde attacks wire. Verify IsoThumpable health decrements and wire breaks.
+6. ~~**Destruction**: Zombie horde attacks wire.~~ Nothing damages wires; zombies walk through them. #45.
 7. **SandboxVars**: Change sound radius in server settings. Verify new values apply.
 8. **Camouflage**: Apply camouflage to wire. Verify invisible to low-Foraging player, visible to high-Foraging player.
 9. **Camo MP**: Two players with different Foraging levels. Verify independent visibility per client.
 10. **Camo degradation**: Camouflage wire, wait for rain. Verify durability drops and wire becomes visible.
-11. **Camo interaction**: High-Foraging player right-clicks camouflaged wire. Verify "Step Over" and "Disarm" options appear.
+11. ~~**Camo interaction**: "Step Over" and "Disarm" options.~~ Never built; the sandbox options for them are gone (#44).
 12. **Camo owner/faction**: Verify placer always sees own wires. Verify faction members see faction wires.
 
 ---
@@ -940,7 +974,14 @@ Events.OnTick.Add(CamoVisibility.onTick)
 
 ---
 
-## Server Sandbox Options (Complete Reference)
+## Server Sandbox Options (proposed, mostly unbuilt)
+
+**`Contents/mods/Deadwire/42/media/sandbox-options.txt` is the real list, and it
+holds 33 of the options below on one page, not nine.** The tables here are the
+original proposal. Every EN label for an option that does not exist was deleted
+in #44, so this section is now the only surviving record of what was cut, which
+is the reason it is still here. `verify_names.py` fails if the two ever
+disagree, in either direction.
 
 Every tunable value in the mod is exposed via SandboxVars. Organized by category page in the server settings UI.
 

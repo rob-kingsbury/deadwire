@@ -47,11 +47,16 @@ DeadwireConfig.Tiers = {
 -- tile per 36 real seconds instead of a roll each (#37). A missing value now
 -- logs. Tin can keeps 36 for when TinCanBreakOnTrigger is off, which is the
 -- number it was already getting; changing it is a balance call, not this fix.
+--
+-- maxSpan and proneDuration used to sit in this table. Nothing read either one,
+-- while the sandbox tooltips told server owners that lines "span up to 4 / 8
+-- tiles" and that a tripped zombie stays down for three seconds. A wire is one
+-- tile and knockDown(false) uses vanilla get-up timing. The text came down with
+-- them; the behaviour is #45 (#38).
 -----------------------------------------------------------
 DeadwireConfig.WireDefaults = {
     tin_can_tripline = {
         health = 50,
-        maxSpan = 4,
         soundRadius = 25,
         soundVolume = 60,
         breakOnTrigger = true,
@@ -60,7 +65,6 @@ DeadwireConfig.WireDefaults = {
     },
     reinforced_tripline = {
         health = 150,
-        maxSpan = 8,
         soundRadius = 40,
         soundVolume = 80,
         breakOnTrigger = false,
@@ -69,7 +73,6 @@ DeadwireConfig.WireDefaults = {
     },
     bell_tripline = {
         health = 150,
-        maxSpan = 8,
         soundRadius = 60,
         soundVolume = 80,
         breakOnTrigger = false,
@@ -78,9 +81,7 @@ DeadwireConfig.WireDefaults = {
     },
     tanglefoot = {
         health = 100,
-        maxSpan = 1,
         tripChance = 40,
-        proneDuration = 3.0,
         cooldownSeconds = 0,    -- no cooldown: every zombie entering gets a roll
         tier = 1,
     },

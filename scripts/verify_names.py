@@ -412,8 +412,18 @@ def check_sandbox_options(rep):
                   if k.startswith("Sandbox_Deadwire_")
                   and not k.endswith("_tooltip") and "_option" not in k}
     for key in sorted(declared - translated):
-        rep.bad("sandbox translation", key, "Translate/EN/Sandbox_EN.json",
+        rep.bad("sandbox translation", key, "Translate/EN/Sandbox.json",
                 "declared option has no EN label")
+
+    # And the other direction. Thirty-odd labels outlived the options they
+    # described -- WireDecay, TanglefootSize, CamoDisarm, the MaxSpans -- so the
+    # file read like a feature list for a mod that does not exist (#44). Harmless
+    # in game, which is exactly why nothing caught it for six sessions.
+    for key in sorted(translated - declared):
+        rep.bad("sandbox translation", key, "Translate/EN/Sandbox.json",
+                "label for an option sandbox-options.txt does not declare")
+    for key in sorted(translated & declared):
+        rep.ok("sandbox translation", key)
 
 
 def _load_translation(name):

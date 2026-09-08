@@ -150,7 +150,10 @@ local function tanglefootZombieHandler(zombie, sq, wire)
         DeadwireConfig.debugLog("Tanglefoot tripped zombie at " .. sq:getX() .. "," .. sq:getY())
     end
 
-    -- Server handles durability degrade (no sound broadcast — silent trap)
+    -- Silent trap, so nothing is broadcast for sound. This told the server to
+    -- degrade tanglefoot durability, which the server has never done: it
+    -- degrades camouflage and logs the trigger, and that is all. Tanglefoot
+    -- wear is #45 (#38).
     notifyServer(sq, wire.wireType)
 end
 

@@ -199,7 +199,6 @@ end)
 test("tin_can_tripline has required numeric fields", function()
     local d = DeadwireConfig.WireDefaults["tin_can_tripline"]
     assert_not_nil(d.health, "health")
-    assert_not_nil(d.maxSpan, "maxSpan")
     assert_not_nil(d.soundRadius, "soundRadius")
     assert_not_nil(d.soundVolume, "soundVolume")
     assert_not_nil(d.tier, "tier")
@@ -218,10 +217,12 @@ test("bell_tripline has cooldownSeconds field", function()
     assert_gte(d.cooldownSeconds, 1, "cooldownSeconds should be positive")
 end)
 
-test("tanglefoot has tripChance and proneDuration fields", function()
+-- proneDuration used to be asserted here beside tripChance. Nothing read it,
+-- so this test only ever confirmed that a number the mod ignores was still
+-- present -- a checker agreeing with a value nobody rechecked (#38).
+test("tanglefoot has a tripChance field", function()
     local d = DeadwireConfig.WireDefaults["tanglefoot"]
     assert_not_nil(d.tripChance, "tripChance")
-    assert_not_nil(d.proneDuration, "proneDuration")
 end)
 
 test("tanglefoot has tier 1", function()
