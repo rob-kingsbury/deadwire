@@ -3,44 +3,37 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 24
+last_session: 25
 last_updated: 2026-09-08
-continue_with: "In-game probe pass (#54), run on Sonnet by Rob's choice. He must FULLY QUIT and relaunch PZ first or the handlers do not register. Same launch: the tin can audio check (#49) and Parts C-G of the test plan (#25). Tell Rob to switch models if a probe comes back negative -- interpreting that is a design call."
-blockers: "#13 and #52 are blocked on the probes. #27 and #45 need a decision from Rob. #48 and #51 are art, batch them. tin_can_rattle.ogg needs a mastering pass, not another gain boost."
+continue_with: "Next in-game session: the tin can audio check (#49 -- ask him plainly whether he HEARS it) and Parts C-G of docs/TEST-PLAN.md (#25). #13 and #52 are unblocked now (see below) but are design/build work, not probes -- no game needed to start on them."
+blockers: "#27 and #45 need a decision from Rob. #48 and #51 are art, batch them. tin_can_rattle.ogg needs a mastering pass, not another gain boost."
 ```
 
 ## To Resume
 
 ```
-Deadwire v0.1.1, Session 25. Start from origin/main. Tree clean, 12 issues open.
+Deadwire v0.1.1, Session 26. Start from origin/main. Tree clean, 11 issues open.
 
-THIS SESSION IS IN-GAME, AND ROB IS RUNNING IT ON SONNET ON PURPOSE. The four
-Tier 3 probe handlers are already written and committed in pz-test-pilot, so
-the job is: call the handler, read what comes back, write it down. Full detail
-and the exact call sequence is in GitHub issue #54, read it first.
+Session 25 answered all four Tier 3 unknowns (#54, closed) -- results on #54,
+#13, #52. #13 and #52 are unblocked and can start any time, no game needed.
 
-BEFORE ANYTHING: Rob must FULLY QUIT Project Zomboid and relaunch. A reloaded
-save does not register a new handler -- Init.lua's requires run once at process
-boot. Ask him to confirm he quit all the way out, not just to the main menu.
+NEXT IN-GAME SESSION (not urgent): tin can audio check (#49 -- ask Rob plainly
+whether he HEARS it) and Parts C-G of docs/TEST-PLAN.md (#25).
 
-WHILE HE IS IN THERE, in one launch: the four probes, then the tin can audio
-check (#49 -- the boosted oggs have never been loaded fresh; ask him plainly
-whether he HEARS it when he walks over a tin can line), then as much of Parts
-C to G of docs/TEST-PLAN.md as he has patience for.
+TALK TO ROB IN PLAIN WORDS, no issue numbers, no labels only we understand.
 
-STOP AND TELL ROB TO SWITCH MODELS if any probe comes back negative. Recording
-the answers is transcription; deciding what to do when the generator turns out
-to recompute its own power total, or modData does not survive on a vanilla
-fence, is a design call that kills the current plan for both electric features.
-He has asked to be told when a switch is needed rather than have it improvised.
+HARNESS: cd c:/xampp/htdocs/pz-test-pilot, scripts/cmd.py get_status.
+loadstring is off so run_lua always throws. cmd.py can't pass a real JSON
+array through args=; call _ipc.send_command from a short Python script for a
+list. teleportTo(x,y,z) is a real, verified IsoGameCharacter method -- the old
+"teleport is broken" note was about a different, nonexistent one.
 
-TALK TO ROB IN PLAIN WORDS. No issue numbers at him, no labels only we
-understand. He has corrected this twice.
-
-HARNESS: cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status.
-loadstring is off on this build so run_lua always throws. cmd.py cannot pass a
-real JSON array through args=; call _ipc.send_command from a short Python
-script for a list. teleport is broken (no setLx/setLy/setLz on IsoPlayer).
+`deadwire_probe_setup` (pz-test-pilot) teleports to a fixed outdoor site
+(8504,9414,0) and builds a real activated generator + StickFence in two steps
+(step=teleport, step=build) -- reuse it rather than hand-building a base. A
+generator left running for days burns its tank dry; remove_object + rebuild
+before trusting a power reading, and advance_time past ElecShutModifier
+BEFORE building, not after.
 ```
 
 ## How PZ actually loads and routes mod Lua
@@ -207,21 +200,59 @@ in `tests/run.lua` is what catches that.
 
 ## Open Issues
 
-Twelve open, and the bodies on GitHub carry the detail -- they were rewritten
-in Session 24, so read the issue rather than trusting a summary here.
+Eleven open. #54 closed in Session 25 -- its results live as comments on #54,
+#13 and #52 rather than repeated here.
 
-- **Next, in game:** #54 the Tier 3 probe pass, #49 the tin can audio check,
-  #25 Parts C-G of the test plan, #12 one real container sighting.
-- **Offline, no decision needed:** #53 circuit adjacency, the one genuinely new
-  piece of code Tier 3 needs. #46 camouflage materials, already decided as Rob
-  wanted it, just needs building.
+- **Next, in game:** #49 the tin can audio check, #25 Parts C-G of the test
+  plan, #12 one real container sighting.
+- **Ready to build, no game needed to start:** #13 electrified deadwire and
+  #52 electrified fence -- both were blocked on Tier 3 probes, both answered.
+  #53 circuit adjacency, the one genuinely new piece of code Tier 3 needs.
+  #46 camouflage materials, already decided as Rob wanted it, just needs
+  building.
 - **Needs a decision from Rob:** #27 bell and reinforced are the same wire with
   a different noise. #45 wire damage, spans, tanglefoot wear.
-- **Blocked on the probes:** #13 electrified deadwire, #52 electrified fence.
 - **Art, batch them:** #48 outline box sized to engine bounds not sprite art,
   #51 wire draws in front of the character, tin_can_rattle.ogg needs mastering.
 
 ## Recent sessions
+
+### Session 25 (2026-09-08): four unknowns answered, and two false readings caught before they shipped
+
+All four Tier 3 probes from #54 run live -- full results on #54, #13, #52.
+
+**`deadwire_probe_setup` builds a real generator and real fence from Lua**,
+no hand-built base needed: the generator via vanilla's own
+`MOGenerator.lua` construction path, the fence via `ISBuildIsoEntity` with
+build cheat flipped on, the same path the F2 debug entity panel uses. Two
+bugs before it worked, both needing a relaunch to catch since the fix lives
+in code loaded at process boot: `setInfo()` reads `self.player`, unset
+outside the normal drag-to-place flow, threw deep in perk-level lookup; and
+the fence's `nSprite=1` (west layout) disagreed with a hardcoded `north=true`
+passed to `create()`, which would have built the fence with its collision on
+the wrong edge -- exactly what the vault probe measures.
+
+**Two false power-radius readings before the real one.** Day 1's city grid
+was still live, so `haveElectricity()` read true everywhere regardless of the
+generator -- looked like a huge radius, meant nothing. Jumped the clock past
+`ElecShutModifier` (instant, no real-time cost) to kill grid power, which
+surfaced a second false reading: the generator, "on" for the whole jump, had
+burned its tank dry and read unpowered everywhere including its own square.
+Neither was a probe bug, both were artifacts of skipping simulated time
+instead of living through it. Rebuilt the generator fresh post-jump; real
+reading was 40 tiles, not the Generator Range mod's hardcoded 20. Repeated on
+a second save after Rob's first corrupted -- same trap, same fix, so it's the
+process, not the save.
+
+**No registered handler could spawn a zombie**, and `SendCommandToServer`
+routed through `call_function` ran with no error and no effect either --
+fire-and-forget gives no way to tell permissions gate from silent parse
+failure. What worked: right-click ground with `-debug` running gives a real
+Debug > Add Zombie option, a real player action instead of a scripted one.
+
+**One cosmetic casualty left alone:** right-clicking the directly-built
+generator throws a stack error, some field a normal placement wires up that
+`IsoGenerator.new` alone doesn't. Throwaway test code, not the mod.
 
 ### Session 24 (2026-09-08): eight dark files lit, and Tier 3 designed
 
@@ -259,42 +290,5 @@ uncommitted for a session. Four `deadwire_probe_*` handlers added for #54.
 Corrected that repo's CLAUDE.md, which claimed `loadstring()` works; it does
 not, and that sentence sent Session 23 down a blind alley.
 
-### Session 23 (2026-09-08): watched it work, for the first time
-
-Parts A and B of `docs/TEST-PLAN.md` run live against a real 42.20.4 game,
-24/24 checks pass. `createWire`'s actual path watched for the first time --
-Session 18 only ever placed raw `IsoObject`s standing in for it.
-
-**The harness had no loadstring.** `run_lua` throws "loadstring unavailable"
-on this build, contradicting pz-test-pilot's own CLAUDE.md, which claims it
-works -- that repo's note is stale. Worked around it by adding two registered
-command handlers (`deadwire_smoke_a`/`deadwire_smoke_b`) directly to the
-harness mod rather than sending code over the wire, since `call_function`
-cannot pass live objects (player, grid squares) across the JSON boundary
-either. Cost one full relaunch to register -- Init.lua's requires run once at
-process boot, a reloaded save does not re-run them.
-
-**What that proved.** All 8 mod-load log lines, all 10 Deadwire globals, loot
-still injected into `FarmerTools`/`MetalShopTools` after Session 22's changes,
-`ISDeadwireTripLine:create` placing a real `IsoThumpable` with the right
-sprite for all four wire types, exactly one kit consumed per placement, the
-canPassThrough/blockAllTheSquare/isThumpable flags all correct, a door beside
-a wire still opens (#8 holds), the context menu correctly gates on carried
-kits, and the save/reload round trip (`loadAll` + `reconnectSquare`) rebuilding
-all four wires with world objects relinked.
-
-**What Rob found live that no script would have caught.** The owner-outline
-box is sized to the object's engine bounds, not the sprite art (#48) --
-visible only by looking at it. Tin can's single-use trigger fired correctly
-when Rob walked over it by accident (confirming part of Part C nobody meant to
-test yet), but the alert sound was so quiet it defeats the wire's entire
-purpose (#49). Measured all three sound assets with ffmpeg: `bell_ring.ogg`
-and `wire_rattle.ogg` had real unused headroom and got gain-boosted (+4dB,
-+10dB, mono preserved, no clipping); `tin_can_rattle.ogg` was already at its
-0dB ceiling, so it needs a mastering pass, not a gain knob. A destroyed
-single-use wire leaves nothing behind, which reads as a bug rather than a
-mechanic (#50). The wire sprite draws in front of the character model, a
-tiles/sprite anchor problem with no Lua-side cause (#51).
-
-**Four issues filed, one commented with full results (#25).** Ends with 11
-open, tree clean except the two boosted `.ogg` files.
+Session 23's write-up (watched `createWire` run live for the first time,
+filed #48-#51) is in `.claude/archive/sessions.md`.

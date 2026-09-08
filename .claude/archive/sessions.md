@@ -196,3 +196,43 @@ coloured per type.
 **The tests grew where the risk was.** 187 to 201. `ISDeadwireTripLine` had no
 tests at all before this, which is exactly why the moved gates could have gone
 missing quietly. Six mutations, all six bit.
+
+### Session 23 (2026-09-08): watched it work, for the first time
+
+Parts A and B of `docs/TEST-PLAN.md` run live against a real 42.20.4 game,
+24/24 checks pass. `createWire`'s actual path watched for the first time --
+Session 18 only ever placed raw `IsoObject`s standing in for it.
+
+**The harness had no loadstring.** `run_lua` throws "loadstring unavailable"
+on this build, contradicting pz-test-pilot's own CLAUDE.md, which claims it
+works -- that repo's note is stale. Worked around it by adding two registered
+command handlers (`deadwire_smoke_a`/`deadwire_smoke_b`) directly to the
+harness mod rather than sending code over the wire, since `call_function`
+cannot pass live objects (player, grid squares) across the JSON boundary
+either. Cost one full relaunch to register -- Init.lua's requires run once at
+process boot, a reloaded save does not re-run them.
+
+**What that proved.** All 8 mod-load log lines, all 10 Deadwire globals, loot
+still injected into `FarmerTools`/`MetalShopTools` after Session 22's changes,
+`ISDeadwireTripLine:create` placing a real `IsoThumpable` with the right
+sprite for all four wire types, exactly one kit consumed per placement, the
+canPassThrough/blockAllTheSquare/isThumpable flags all correct, a door beside
+a wire still opens (#8 holds), the context menu correctly gates on carried
+kits, and the save/reload round trip (`loadAll` + `reconnectSquare`) rebuilding
+all four wires with world objects relinked.
+
+**What Rob found live that no script would have caught.** The owner-outline
+box is sized to the object's engine bounds, not the sprite art (#48) --
+visible only by looking at it. Tin can's single-use trigger fired correctly
+when Rob walked over it by accident (confirming part of Part C nobody meant to
+test yet), but the alert sound was so quiet it defeats the wire's entire
+purpose (#49). Measured all three sound assets with ffmpeg: `bell_ring.ogg`
+and `wire_rattle.ogg` had real unused headroom and got gain-boosted (+4dB,
++10dB, mono preserved, no clipping); `tin_can_rattle.ogg` was already at its
+0dB ceiling, so it needs a mastering pass, not a gain knob. A destroyed
+single-use wire leaves nothing behind, which reads as a bug rather than a
+mechanic (#50). The wire sprite draws in front of the character model, a
+tiles/sprite anchor problem with no Lua-side cause (#51).
+
+**Four issues filed, one commented with full results (#25).** Ends with 11
+open, tree clean except the two boosted `.ogg` files.
