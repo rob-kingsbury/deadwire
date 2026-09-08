@@ -128,3 +128,12 @@ names, a kit item id typo, and `Base.TreeBranch`. Filed #14–#18.
 
 Built `pz_unpack.py` at `c:/xampp/htdocs/pz-tilesheet/`. Generated all 4
 inventory icons — on opaque white backgrounds, which Session 18 had to fix.
+
+---
+
+### Session 20 (2026-09-06): the review
+
+A Fable agent read all 2,136 lines against the installed jar with `javap`, not
+inference. Fourteen findings, eleven confirmed, filed as #31 to #43. Report in
+`docs/REVIEW-30.md`. Established the five run-mode facts above, and found two of
+PLAN.md's own "expected behaviour" lines were fiction.

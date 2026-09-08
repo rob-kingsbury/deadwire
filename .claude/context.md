@@ -372,9 +372,4 @@ generated from the jar. Deleted `deadwire_01.tiles.txt`, which the game never
 read and which this checker had been verifying instead of the real file. Fixed
 `tools/pz-tilesheet` writing the tiledef id into the tileset-number field.
 
-### Session 20 (2026-09-06): the review
-
-A Fable agent read all 2,136 lines against the installed jar with `javap`, not
-inference. Fourteen findings, eleven confirmed, filed as #31 to #43. Report in
-`docs/REVIEW-30.md`. Established the five run-mode facts above, and found two of
-PLAN.md's own "expected behaviour" lines were fiction.
+Older sessions (20 and earlier) are in `.claude/archive/sessions.md`.
