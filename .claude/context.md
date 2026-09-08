@@ -3,70 +3,82 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 22
+last_session: 23
 last_updated: 2026-09-08
-continue_with: "Build tools/smoke.lua first (no game needed), then STOP and wait for Rob to confirm PZ is up before touching the harness. Parts A and B only. See To Resume for the cost rules."
-blockers: "Nothing is blocked on code. #25 and #12 need the running game Rob is providing; #27 #45 #46 need a decision from him; #13 is a later phase."
+continue_with: "#47 first (offline, no game): eight of fourteen Lua files execute in no test. Then #50 (remnant item on single-use wire destroy), also offline. #49's audio fix needs Rob to relaunch and confirm before it can be called done."
+blockers: "#25 needs another game session for Parts C-G (D-G untouched, C mostly untouched). #27 #45 #46 need a decision from Rob. #51 needs the sprite/tiles pipeline touched, which is art work, not Lua. #48 is a real engine limitation (setOutlineHighlight on an irregular sprite), not a quick fix."
 ```
 
 ## To Resume
 
 ```
-Deadwire v0.1.1, Session 23. Start from origin/main (git pull).
+Deadwire v0.1.1, Session 24. Start from origin/main (git pull).
 
-Tree clean, 7 issues open, nothing in flight. Last code change is 062101e.
+Tree clean, 11 issues open. Last code change is the ogg gain boost, this
+session's only commit to Deadwire itself.
 
-ROB IS RUNNING THE GAME FOR YOU. He agreed at the end of Session 22 to launch
-PZ and leave it on a loaded save so you drive the test plan through the harness
-instead of handing him a checklist. Ask him only for things a person has to do:
-launch it, enable the mod, alt-tab away, listen for a sound, look at a colour.
+SESSION 23 RAN THE HARNESS FOR REAL, LIVE, WITH ROB IN THE GAME. Parts A and B
+of docs/TEST-PLAN.md: 24/24 checks pass. First time createWire's actual path
+has ever been watched -- full detail in the #25 comment and Recent Sessions
+below. `run_lua` turned out to have no loadstring on this build (contradicts
+pz-test-pilot's own CLAUDE.md, which says it works -- that repo's note is
+stale, not this project's problem to fix). The fix was two new command
+handlers in pz-test-pilot itself (deadwire_smoke_a/deadwire_smoke_b in
+harness/42/media/lua/client/TestPilot/CmdDeadwireSmoke.lua), not a Deadwire
+code change, and NOT YET COMMITTED in that repo -- it is a separate git repo
+Rob did not ask to be handed off tonight, only flagged so the work is not lost.
 
-DO THIS IN THIS ORDER. Step 2 is a hard stop.
+WHAT'S BUILDABLE NOW, NO GAME NEEDED, IN PRIORITY ORDER:
 
-  1. BUILD tools/smoke.lua FIRST. No game needed, so do it before he launches.
-     One script that performs every programmatic check in Parts A and B of
-     docs/TEST-PLAN.md and returns ONE LINE PER CHECK, already judged:
-       B4 PASS: tin_can_tripline at 10909,9995,0, kit consumed
-       B6 FAIL: square 10909,9995,0 reports blocked, expected passable
-     The game does the judging. Do not return raw world state for you to reason
-     about in prose -- that is the expensive shape.
+  1. #47. Eight of fourteen Lua files execute in no test at all, six written
+     in Session 22, including the whole owner outline. `lua -e "loadfile"`
+     every mod .lua and report pass/fail per file -- this is the syntax-only
+     gate `## Gates` below has been missing.
 
-  2. STOP AND WAIT. Do not call the harness until Rob says the game is up. He
-     is launching PZ, enabling Deadwire, starting a sandbox save with zombie
-     population OFF, and leaving the window alone. Ask, then wait.
+  2. #50. Destroyed single-use wires (tin can, breakOnTrigger=true) leave
+     nothing on the tile. Rob's words: "it just looks like a bug." Add a
+     remnant item drop in DeadwireWireManager.destroyWire or the
+     WireTriggered handler in ServerCommands.lua. Needs a decision on what
+     item (scrap? the tin can itself, minus the wire?) -- ask Rob rather than
+     guessing, this is a design call not an API lookup.
 
-  3. scripts/cmd.py get_status. `harness_dead` almost always means PZ is PAUSED
-     or ALT-TABBED, not crashed -- the poll loop stops when it loses focus.
-     Wait and retry before telling him anything is wrong.
+WHAT NEEDS ROB IN THE GAME AGAIN, NOT YET:
 
-  4. Run the smoke script ONCE. Read the one block it returns. Report one line
-     per check and stop. Do not continue to Parts C-G without him saying so.
+  - #49's fix is unverified. bell_ring.ogg and wire_rattle.ogg got gain-
+    boosted (+4dB, +10dB, ffmpeg, mono preserved, no clipping) and synced, but
+    the boost happened mid-session after those files were already loaded, so
+    nothing has actually confirmed PZ picked up the new bytes. Needs a
+    relaunch and a walk-over-a-wire, not a code read.
+  - tin_can_rattle.ogg is UNCHANGED. It already peaks at 0.0dB -- a gain boost
+    would just clip. Getting it louder needs real compression/limiting, a
+    mastering pass, not an ffmpeg one-liner. Closer in kind to sprite art than
+    to code (see rob-avoids-sprite-art-work in project memory) -- batch it
+    rather than doing it alone.
+  - Parts C (mostly), D, E, F, G of docs/TEST-PLAN.md are still unrun. Today
+    only ever ran A and B on purpose, per Rob's own scoping at session start.
 
-COST RULES, agreed with Rob at the end of Session 22. The driver is turn count
-and output tokens, not the cached prefix.
+HARNESS NOTES FOR NEXT TIME IN-GAME:
 
-  - One script, not twenty run_lua calls. Parts A and B should be about three
-    turns, not thirty.
-  - LEAVE DeadwireConfig.DEBUG OFF. It logs a line per tile registration and is
-    most of the log volume. Turn it on only after something fails.
-  - Read results with `grep '\[Deadwire\]'`. NEVER read console.txt whole:
-    724KB, roughly 180,000 tokens, and none of it is ours. Measured: a real
-    session leaves 29 Deadwire lines, 3.5KB, and fewer with DEBUG off.
-  - One line per check when reporting. No paragraphs until something fails.
-  - Sonnet is the right model for executing this. Switch up only to diagnose a
-    failure, in the same window so the context carries.
+  - `loadstring` is off. `run_lua` throws "loadstring unavailable" every time.
+    Use `deadwire_smoke_a`/`deadwire_smoke_b` (already registered) for
+    anything that needs live objects, or `call_function path=X.Y args=[...]`
+    for an existing global taking only primitive args -- but cmd.py's CLI
+    cannot pass a real JSON array through `args=`, it sends the literal string
+    instead and the Lua side throws a ClassCastException. Call `_ipc.send_command`
+    directly from a short Python script when `args` needs to be a real list
+    (see the tile-cleanup calls this session for a working example).
+  - `teleport` is broken in this harness build: `setLx`/`setLy`/`setLz` do not
+    exist on IsoPlayer, throws "Object tried to call nil" every time. Not a
+    Deadwire bug, not fixed this session, walk the player manually instead.
+  - Any NEW command handler needs Rob to fully quit and relaunch PZ before it
+    exists -- Init.lua's requires run once at process boot, not at
+    load-save. A returned save/new-game does not re-run them.
 
-IF THE HARNESS WILL NOT COOPERATE, fall back to #47: eight of the mod's
-fourteen Lua files execute in no test at all, six written in Session 22,
-including the whole owner outline. Highest-value offline work left, needs no
-game.
+Gates: python scripts/verify_names.py | run_tests.bat (PowerShell, not Git
+Bash) | python tools/validate_pack.py | lua -e "loadfile" every mod .lua
+(#47, not yet scripted -- do that as part of #47, not before it).
 
-Gates:  python scripts/verify_names.py  |  run_tests.bat (PowerShell, not Git
-Bash)  |  python tools/validate_pack.py
-
-Harness: cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status or
-run_lua 'code=<lua>'. cmd.py splits on the FIRST '=' only, so Lua full of '='
-is safe.
+Harness: cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status.
 ```
 
 ## How PZ actually loads and routes mod Lua
@@ -234,24 +246,74 @@ so a syntax error in them is invisible until the game refuses the file.
 
 ## Open Issues
 
-Seven open. Only #47 can be worked without either the game or a decision.
+Eleven open. #47 and #50 can be worked without either the game or a decision.
 
-- **Next session, with the game Rob is providing:** #25 the smoke test, scripted
-  in `docs/TEST-PLAN.md`. #12 loot injection is confirmed at 11/11 tables and
-  needs one real container sighting to close.
 - **Buildable now, no game needed:** #47 eight of fourteen Lua files execute in
   no test. Six were written in Session 22, including the whole owner outline.
-  The fallback if the harness will not run.
+  #50 destroyed single-use wires leave no remnant -- needs a decision on what
+  item, not an API lookup.
+- **Next session, with the game Rob is providing:** #25 the smoke test (Parts A
+  and B done at Session 23, C-G still open). #12 loot injection is confirmed at
+  11/11 tables, reconfirmed live at Session 23, and needs one real container
+  sighting to close. #49 the tin can trigger sound was too quiet -- two of
+  three sound assets gain-boosted, unverified whether the boost actually took
+  in a running game.
 - **Needs Rob:** #27 Tier 1 balance (bell and reinforced are the same wire with
   a different noise). #45 wire damage, spans and tanglefoot wear. #46 camouflage
   materials, one grass or hay plus one twigs, item names already verified. My
   recommendation is a comment on #27 and #45; #46 is written as Rob decided it.
+- **Art/audio, not Lua:** #48 the owner/camo outline box is sized to the
+  object's engine bounds, not the sprite art -- a real setOutlineHighlight
+  limitation on an irregular sprite, not a quick fix. #51 the wire sprite
+  draws in front of the character -- needs the tiles pipeline touched.
+  tin_can_rattle.ogg needs a mastering pass, already at its gain ceiling.
 - **Later phase:** #13 Tier 3. No adjacency graph yet; compute a circuit id per
   tile at place and remove time, never on the zombie tick.
 
-Phase 1 is code-complete. Nothing in it has been watched working.
+Phase 1 is code-complete. Session 23 watched most of it working for the first
+time.
 
 ## Recent sessions
+
+### Session 23 (2026-09-08): watched it work, for the first time
+
+Parts A and B of `docs/TEST-PLAN.md` run live against a real 42.20.4 game,
+24/24 checks pass. `createWire`'s actual path watched for the first time --
+Session 18 only ever placed raw `IsoObject`s standing in for it.
+
+**The harness had no loadstring.** `run_lua` throws "loadstring unavailable"
+on this build, contradicting pz-test-pilot's own CLAUDE.md, which claims it
+works -- that repo's note is stale. Worked around it by adding two registered
+command handlers (`deadwire_smoke_a`/`deadwire_smoke_b`) directly to the
+harness mod rather than sending code over the wire, since `call_function`
+cannot pass live objects (player, grid squares) across the JSON boundary
+either. Cost one full relaunch to register -- Init.lua's requires run once at
+process boot, a reloaded save does not re-run them.
+
+**What that proved.** All 8 mod-load log lines, all 10 Deadwire globals, loot
+still injected into `FarmerTools`/`MetalShopTools` after Session 22's changes,
+`ISDeadwireTripLine:create` placing a real `IsoThumpable` with the right
+sprite for all four wire types, exactly one kit consumed per placement, the
+canPassThrough/blockAllTheSquare/isThumpable flags all correct, a door beside
+a wire still opens (#8 holds), the context menu correctly gates on carried
+kits, and the save/reload round trip (`loadAll` + `reconnectSquare`) rebuilding
+all four wires with world objects relinked.
+
+**What Rob found live that no script would have caught.** The owner-outline
+box is sized to the object's engine bounds, not the sprite art (#48) --
+visible only by looking at it. Tin can's single-use trigger fired correctly
+when Rob walked over it by accident (confirming part of Part C nobody meant to
+test yet), but the alert sound was so quiet it defeats the wire's entire
+purpose (#49). Measured all three sound assets with ffmpeg: `bell_ring.ogg`
+and `wire_rattle.ogg` had real unused headroom and got gain-boosted (+4dB,
++10dB, mono preserved, no clipping); `tin_can_rattle.ogg` was already at its
+0dB ceiling, so it needs a mastering pass, not a gain knob. A destroyed
+single-use wire leaves nothing behind, which reads as a bug rather than a
+mechanic (#50). The wire sprite draws in front of the character model, a
+tiles/sprite anchor problem with no Lua-side cause (#51).
+
+**Four issues filed, one commented with full results (#25).** Ends with 11
+open, tree clean except the two boosted `.ogg` files.
 
 ### Session 22 (2026-09-08): the paper work finished, and a test plan
 
