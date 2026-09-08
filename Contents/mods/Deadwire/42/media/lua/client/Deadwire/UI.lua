@@ -3,6 +3,7 @@
 
 require "Deadwire/Config"
 require "Deadwire/WireNetwork"
+require "Deadwire/WireActions"
 -- ISDeadwireTripLine is a global from server/BuildActions.lua (loaded before callbacks fire)
 
 DeadwireUI = DeadwireUI or {}
@@ -39,15 +40,39 @@ local function onPlaceWire(worldObjects, character, wireType)
 end
 
 -----------------------------------------------------------
--- Removal Menu
+-- Acting on a placed wire
+--
+-- Both of these walk the player to the wire and then run a timed action,
+-- rather than firing the command from the menu. The server bounds how far away
+-- the player may be (#36) and a context menu can be opened on any tile on
+-- screen, so without the walk every click more than four tiles out would be
+-- silently refused.
+--
+-- walkAdj returns false when there is no reachable adjacent tile. Queue
+-- nothing in that case, the same as vanilla.
 -----------------------------------------------------------
 
+local REMOVE_TIME     = 80
+local CAMOUFLAGE_TIME = 250
+
+local function queueWireAction(character, x, y, z, command, maxTime)
+    local sq = getCell():getGridSquare(x, y, z)
+    if not sq then return end
+    if not luautils.walkAdj(character, sq, false) then return end
+    ISTimedActionQueue.add(
+        ISDeadwireWireAction:new(character, command, x, y, z, maxTime))
+end
+
 local function onRemoveWire(worldObjects, character, x, y, z)
-    sendClientCommand(DeadwireConfig.MODULE, "RemoveWire", {
-        x = x,
-        y = y,
-        z = z,
-    })
+    queueWireAction(character, x, y, z, "RemoveWire", REMOVE_TIME)
+end
+
+-- Camouflage had no player-facing entry point at all until now: twelve sandbox
+-- options, a visibility model and a rain-degradation model, reachable only by
+-- hand-sending a client command (#42). Materials and a skill check are still
+-- Sprint 4; the server applies full durability for free today.
+local function onCamouflageWire(worldObjects, character, x, y, z)
+    queueWireAction(character, x, y, z, "CamouflageWire", CAMOUFLAGE_TIME)
 end
 
 -----------------------------------------------------------
@@ -83,8 +108,14 @@ local function onFillWorldObjectContextMenu(playerNum, context, worldObjects, te
 
         if isOwner or isAdmin then
             local friendlyName = wireDisplayNames[existingWire.wireType] or existingWire.wireType
-            local label = "Remove " .. friendlyName
-            context:addOption(label, worldObjects, onRemoveWire, character, x, y, z)
+            context:addOption("Remove " .. friendlyName,
+                worldObjects, onRemoveWire, character, x, y, z)
+
+            if DeadwireConfig.getSandbox("EnableCamouflage", true)
+                and not existingWire.camouflaged then
+                context:addOption("Camouflage " .. friendlyName,
+                    worldObjects, onCamouflageWire, character, x, y, z)
+            end
         end
     else
         -- No wire: show placement submenu only if player has any kits

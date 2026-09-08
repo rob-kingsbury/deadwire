@@ -21,6 +21,7 @@ require "Deadwire/WireNetwork"
 require "Deadwire/Detection"     -- registers Events.OnZombieUpdate / OnPlayerUpdate
 require "Deadwire/WireManager"   -- registers Events.OnInitGlobalModData / LoadGridsquare
 require "Deadwire/ServerCommands" -- registers Events.OnClientCommand
+require "Deadwire/BuildActions"   -- ISDeadwireTripLine, the real placement path
 
 -- Run test files
 dofile("tests/test_config.lua")
@@ -28,6 +29,7 @@ dofile("tests/test_wire_network.lua")
 dofile("tests/test_detection.lua")
 dofile("tests/test_wire_manager.lua")
 dofile("tests/test_server_commands.lua")
+dofile("tests/test_build_actions.lua")
 
 -- Print final results (exits with code 1 if any failures)
 results()

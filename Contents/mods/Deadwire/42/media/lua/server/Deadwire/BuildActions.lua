@@ -26,6 +26,28 @@ function ISDeadwireTripLine:create(x, y, z, north, sprite)
 
     local wireType = self.wireType or DeadwireConfig.WireTypes.TIN_CAN
     local username = self.character:getUsername() or "SP"
+
+    -- The tier gate and the wire cap used to live in the PlaceWire server
+    -- command, which #36 deleted as an unchecked second placement path. They
+    -- belong here, on the path that actually places wires: this create() runs
+    -- server-side in multiplayer, so a client that never opened our context
+    -- menu still passes through it.
+    local defaults = DeadwireConfig.WireDefaults[wireType]
+    if not defaults then
+        DeadwireConfig.log("BuildActions: unknown wire type " .. tostring(wireType))
+        return
+    end
+    if not DeadwireConfig.isTierEnabled(defaults.tier) then
+        DeadwireConfig.debugLog("BuildActions: tier " .. defaults.tier .. " disabled")
+        return
+    end
+
+    local maxWires = DeadwireConfig.getSandbox("WireMaxPerPlayer", 50)
+    if DeadwireNetwork.getPlayerTileCount(username) >= maxWires then
+        DeadwireConfig.log("BuildActions: " .. username .. " at wire limit (" .. maxWires .. ")")
+        return
+    end
+
     local networkId = DeadwireNetwork.generateNetworkId()
 
     -- Verify kit item exists before attempting placement (consume only after success)
@@ -45,6 +67,11 @@ function ISDeadwireTripLine:create(x, y, z, north, sprite)
     -- Consume kit only after wire placement confirmed
     if kitItemObj then
         self.character:getInventory():Remove(kitItemObj)
+    end
+
+    if DeadwireConfig.getSandbox("LogWirePlacements", true) then
+        DeadwireConfig.log("Wire placed: " .. wireType .. " at "
+            .. x .. "," .. y .. "," .. z .. " by " .. username)
     end
 
     sendServerCommand(DeadwireConfig.MODULE, "WirePlaced", {

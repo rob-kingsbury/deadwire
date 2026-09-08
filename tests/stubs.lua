@@ -106,6 +106,14 @@ function _makeSquare(x, y, z)
         end,
         RecalcAllWithNeighbours = function() end,
 
+        -- What ISDeadwireTripLine:isValid asks a square. Both start in the
+        -- state that lets a wire be placed; a test that cares about refusal
+        -- sets the field itself, so neither answer is invented here.
+        _vehicleIntersecting = false,
+        _freeOrMidair = true,
+        isVehicleIntersecting = function(self) return self._vehicleIntersecting end,
+        isFreeOrMidair = function(self) return self._freeOrMidair end,
+
         -- Live zombies and players on this tile. Real IsoGridSquare returns an
         -- ArrayList here, hence size()/get(i) with a zero base. Starts empty
         -- and only ever holds what a test explicitly put there -- the server's
@@ -235,6 +243,30 @@ IsoThumpable = {
         return obj
     end,
 }
+
+-----------------------------------------------------------------
+-- ISBuildingObject stub
+--
+-- Enough of the vanilla base class for ISDeadwireTripLine to derive from it
+-- and be constructed. derive() mirrors ISBaseObject: a fresh table whose
+-- __index is the parent, so methods inherit and fields do not. The setters
+-- record, because "did new() resolve a sprite for this wire type" is a thing
+-- worth asserting.
+-----------------------------------------------------------------
+ISBuildingObject = {}
+
+function ISBuildingObject:derive(name)
+    local o = {}
+    setmetatable(o, self)
+    self.__index = self
+    o.Type = name
+    return o
+end
+
+function ISBuildingObject:init() end
+function ISBuildingObject:setSprite(s) self.sprite = s end
+function ISBuildingObject:setNorthSprite(s) self.northSprite = s end
+function ISBuildingObject.render() end
 
 -----------------------------------------------------------------
 -- ModData (GlobalModData persistence stub)
@@ -375,6 +407,7 @@ function _mockPlayer(x, y, z, username)
         getUsername   = function() return username or "testplayer" end,
         getInventory  = function() return inv end,
         isAccessLevel = function() return false end,
+        getPlayerNum  = function() return 0 end,
         getRole       = function() return {
             hasCapability = function() return false end
         } end,

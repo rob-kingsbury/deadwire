@@ -74,15 +74,25 @@ local function isPrivileged(player)
     return role:hasCapability(Capability.UseBuildCheat)
 end
 
--- Does this player actually hold the kit this wire type costs?
--- The client-side build action consumes a kit, but PlaceWire is a separate
--- server command any client can send directly, so it must check for itself.
-local function findKit(player, wireType)
-    local kitItem = DeadwireConfig.KitItems[wireType]
-    if not kitItem then return nil, true end   -- type needs no kit
-    local inv = player:getInventory()
-    if not inv then return nil, false end
-    return inv:getFirstTypeRecurse(kitItem), false
+-- Is this player close enough to touch that wire?
+--
+-- Unlike a WireTriggered report, where the thing being validated is a zombie
+-- somewhere else (#31), here the player IS the actor, so their own distance is
+-- the right thing to check.
+--
+-- Both callers reach the server behind luautils.walkAdj plus a timed action, so
+-- the player has walked adjacent and is within about 1.6 tiles when the command
+-- is sent. 4 is that plus slack for the server's copy of a moving player's
+-- position lagging the client's in multiplayer. Floor is exact: a wire one
+-- storey up is not within arm's reach.
+local INTERACT_MAX_DIST = 4
+
+local function withinReach(player, x, y, z)
+    local sq = player and player:getSquare()
+    if not sq then return false end
+    if sq:getZ() ~= z then return false end
+    return math.abs(sq:getX() - x) <= INTERACT_MAX_DIST
+       and math.abs(sq:getY() - y) <= INTERACT_MAX_DIST
 end
 
 -----------------------------------------------------------
@@ -106,84 +116,12 @@ local function onClientCommand(module, command, player, args)
     end
 end
 
------------------------------------------------------------
--- PlaceWire: Client requests wire placement at a tile
------------------------------------------------------------
-
-handlers["PlaceWire"] = function(player, args)
-    if not hasPosition(args) or not args.wireType then
-        DeadwireConfig.log("PlaceWire: invalid args")
-        return
-    end
-
-    local wireType = args.wireType
-    local defaults = DeadwireConfig.WireDefaults[wireType]
-    if not defaults then
-        DeadwireConfig.log("PlaceWire: unknown type " .. tostring(wireType))
-        return
-    end
-
-    if not DeadwireConfig.isTierEnabled(defaults.tier) then
-        DeadwireConfig.debugLog("PlaceWire: tier " .. defaults.tier .. " disabled")
-        return
-    end
-
-    -- Wire limit per player
-    local username = player:getUsername() or "SP"
-    local maxWires = DeadwireConfig.getSandbox("WireMaxPerPlayer", 50)
-    if DeadwireNetwork.getPlayerTileCount(username) >= maxWires then
-        DeadwireConfig.log("PlaceWire: " .. username .. " at limit (" .. maxWires .. ")")
-        return
-    end
-
-    -- Validate square
-    local sq = getCell():getGridSquare(args.x, args.y, args.z)
-    if not sq then
-        DeadwireConfig.log("PlaceWire: no square at " .. args.x .. "," .. args.y .. "," .. args.z)
-        return
-    end
-
-    -- No stacking wires on same tile
-    if DeadwireNetwork.getTile(args.x, args.y, args.z) then
-        DeadwireConfig.log("PlaceWire: tile occupied")
-        return
-    end
-
-    -- Player must actually hold the kit. Without this a modified client can
-    -- place wires it never crafted, bounded only by WireMaxPerPlayer. Fixes #15.
-    local kitItemObj, kitless = findKit(player, wireType)
-    if not kitless and not kitItemObj then
-        DeadwireConfig.log("PlaceWire: " .. username .. " has no kit for " .. wireType)
-        return
-    end
-
-    -- Create IsoThumpable + register in WireNetwork + persist
-    local networkId = DeadwireNetwork.generateNetworkId()
-    local obj = DeadwireWireManager.createWire(sq, wireType, username, networkId, args.north)
-    if not obj then
-        DeadwireConfig.log("PlaceWire: WireManager.createWire failed")
-        return
-    end
-
-    -- Consume only after placement is confirmed
-    if kitItemObj then
-        player:getInventory():Remove(kitItemObj)
-    end
-
-    if DeadwireConfig.getSandbox("LogWirePlacements", true) then
-        DeadwireConfig.log("Wire placed: " .. wireType .. " at "
-            .. args.x .. "," .. args.y .. "," .. args.z .. " by " .. username)
-    end
-
-    sendServerCommand(DeadwireConfig.MODULE, "WirePlaced", {
-        x = args.x,
-        y = args.y,
-        z = args.z,
-        networkId = networkId,
-        wireType = wireType,
-        ownerId = username,
-    })
-end
+-- PlaceWire used to live here: a plain server command that trusted args.x/y/z
+-- with no proximity or validity check, so a modified client could place wires
+-- on any loaded square at any range. Nothing ever called it. The real placement
+-- path is ISDeadwireTripLine in BuildActions.lua, which the engine validates
+-- server-side by calling our isValid from BuildAction.isValid, and which
+-- consumes the kit itself. Deleted with its client wrapper and its tests (#36).
 
 -----------------------------------------------------------
 -- RemoveWire: Client requests wire removal
@@ -205,6 +143,12 @@ handlers["RemoveWire"] = function(player, args)
     local username = player:getUsername() or "SP"
     if wire.ownerId ~= username and not isPrivileged(player) then
         DeadwireConfig.log("RemoveWire: " .. username .. " not authorized")
+        return
+    end
+
+    if not withinReach(player, args.x, args.y, args.z) then
+        DeadwireConfig.log("RemoveWire: " .. username .. " too far from "
+            .. args.x .. "," .. args.y .. "," .. args.z)
         return
     end
 
@@ -347,6 +291,21 @@ handlers["CamouflageWire"] = function(player, args)
 
     local wire = DeadwireNetwork.getTile(args.x, args.y, args.z)
     if not wire or wire.camouflaged then return end
+
+    -- Same authority as removal: hiding someone else's wire is as much a
+    -- change to their perimeter as taking it away, and until #36 this handler
+    -- had no owner check, no distance check and no material check at all.
+    local username = player:getUsername() or "SP"
+    if wire.ownerId ~= username and not isPrivileged(player) then
+        DeadwireConfig.log("CamouflageWire: " .. username .. " not authorized")
+        return
+    end
+
+    if not withinReach(player, args.x, args.y, args.z) then
+        DeadwireConfig.log("CamouflageWire: " .. username .. " too far from "
+            .. args.x .. "," .. args.y .. "," .. args.z)
+        return
+    end
 
     -- TODO Sprint 4: Validate materials, skill checks, consume materials
 
