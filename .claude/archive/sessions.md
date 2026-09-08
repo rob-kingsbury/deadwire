@@ -165,3 +165,34 @@ read and which this checker had been verifying instead of the real file. Fixed
 `tools/pz-tilesheet` writing the tiledef id into the tileset-number field.
 
 Older sessions (20 and earlier) are in `.claude/archive/sessions.md`.
+
+### Session 22 (2026-09-08): the paper work finished, and a test plan
+
+Five issues closed in three commits, and the mod stopped being a thing with
+known holes in it. It is now a thing nobody has watched.
+
+**Authority and the way in (de322da).** `PlaceWire` is gone: a server command
+that trusted whatever coordinates it was handed, with no proximity check, that
+nothing ever called. Deleting it took the per-player wire cap and the placement
+log with it, which `verify_names` caught on its own -- two options came back as
+declared-but-unread within a minute (now Key Rule 13). Both moved to
+`ISDeadwireTripLine:create`, the path the engine actually uses. `CamouflageWire`
+gained the owner check it never had, `RemoveWire` gained a distance bound, and
+camouflage gained a context menu, which it had never had at all. Both menu
+options walk the player to the wire and run a timed action, because a context
+menu opens on any tile on screen and the new bound would have refused most
+clicks -- which would have been #31 all over again.
+
+**Text and outline (4e84ef2, 062101e).** `maxSpan` and `proneDuration` deleted:
+declared per type, read by nothing, and promising spans and prone timers in the
+tooltips. 76 orphan label lines gone from `Sandbox.json`, and `verify_names` now
+refuses a label with no option as well as an option with no label. The rain
+tooltip said "per hour" and the code runs every ten in-game minutes, found while
+writing the test plan -- which is worth noting as a method, since prose a person
+will act on has to bottom out in the code. `PLAN.md` carries a banner naming
+every place it disagrees with the mod. Owner outline (#29) walks every wire now,
+coloured per type.
+
+**The tests grew where the risk was.** 187 to 201. `ISDeadwireTripLine` had no
+tests at all before this, which is exactly why the moved gates could have gone
+missing quietly. Six mutations, all six bit.

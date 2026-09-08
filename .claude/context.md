@@ -5,39 +5,42 @@ project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
 last_session: 24
 last_updated: 2026-09-08
-continue_with: "Push e436ee6, which closes #47. Then #50 (remnant item on single-use wire destroy), offline but blocked on one design decision from Rob. #49's audio fix needs Rob to relaunch and confirm before it can be called done."
-blockers: "#50 #27 #45 #46 need a decision from Rob. #25 needs another game session for Parts C-G (D-G untouched, C mostly untouched). #51 needs the sprite/tiles pipeline touched, which is art work, not Lua. #48 is a real engine limitation (setOutlineHighlight on an irregular sprite), not a quick fix."
+continue_with: "In-game probe pass (#54), run on Sonnet by Rob's choice. He must FULLY QUIT and relaunch PZ first or the handlers do not register. Same launch: the tin can audio check (#49) and Parts C-G of the test plan (#25). Tell Rob to switch models if a probe comes back negative -- interpreting that is a design call."
+blockers: "#13 and #52 are blocked on the probes. #27 and #45 need a decision from Rob. #48 and #51 are art, batch them. tin_can_rattle.ogg needs a mastering pass, not another gain boost."
 ```
 
 ## To Resume
 
 ```
-Deadwire v0.1.1, Session 25. Start from origin/main.
+Deadwire v0.1.1, Session 25. Start from origin/main. Tree clean, 12 issues open.
 
-Session 24 closed #47. All fourteen mod .lua files now load in the suite,
-run_tests.bat compiles all fourteen before running it, and 330 tests pass
-(was 201). Commit e436ee6 is LOCAL AND UNPUSHED -- pushing it auto-closes #47.
+THIS SESSION IS IN-GAME, AND ROB IS RUNNING IT ON SONNET ON PURPOSE. The four
+Tier 3 probe handlers are already written and committed in pz-test-pilot, so
+the job is: call the handler, read what comes back, write it down. Full detail
+and the exact call sequence is in GitHub issue #54, read it first.
 
-NEXT, NO GAME NEEDED: #50. A destroyed single-use wire leaves nothing on the
-tile, which Rob read as a bug rather than a mechanic. Blocked on one decision:
-what item drops, scrap or the tin can minus its wire. Ask him, do not guess --
-this is a design call, not an API lookup.
+BEFORE ANYTHING: Rob must FULLY QUIT Project Zomboid and relaunch. A reloaded
+save does not register a new handler -- Init.lua's requires run once at process
+boot. Ask him to confirm he quit all the way out, not just to the main menu.
 
-NEEDS ROB IN THE GAME: #49's audio fix is unverified. bell_ring.ogg and
-wire_rattle.ogg were gain-boosted (+4dB, +10dB) after PZ had already loaded
-them, so nothing has confirmed the new bytes were picked up; it needs a
-relaunch and a walk over a wire. tin_can_rattle.ogg is UNCHANGED and already at
-its 0dB ceiling -- getting it louder needs a mastering pass, not a gain knob,
-so batch it with other art work. Parts C to G of docs/TEST-PLAN.md are unrun;
-Session 23 ran A and B only, on purpose.
+WHILE HE IS IN THERE, in one launch: the four probes, then the tin can audio
+check (#49 -- the boosted oggs have never been loaded fresh; ask him plainly
+whether he HEARS it when he walks over a tin can line), then as much of Parts
+C to G of docs/TEST-PLAN.md as he has patience for.
 
-HARNESS (cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status):
-loadstring is off on this build so run_lua always throws -- use the registered
-deadwire_smoke_a / deadwire_smoke_b instead. cmd.py cannot pass a real JSON
-array through args=; call _ipc.send_command from a short Python script for a
-list. teleport is broken (no setLx/setLy/setLz on IsoPlayer); walk the player.
-Any NEW handler needs a full PZ relaunch, not a reloaded save. Session 23's two
-smoke handlers live in pz-test-pilot and are still uncommitted there.
+STOP AND TELL ROB TO SWITCH MODELS if any probe comes back negative. Recording
+the answers is transcription; deciding what to do when the generator turns out
+to recompute its own power total, or modData does not survive on a vanilla
+fence, is a design call that kills the current plan for both electric features.
+He has asked to be told when a switch is needed rather than have it improvised.
+
+TALK TO ROB IN PLAIN WORDS. No issue numbers at him, no labels only we
+understand. He has corrected this twice.
+
+HARNESS: cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status.
+loadstring is off on this build so run_lua always throws. cmd.py cannot pass a
+real JSON array through args=; call _ipc.send_command from a short Python
+script for a list. teleport is broken (no setLx/setLy/setLz on IsoPlayer).
 ```
 
 ## How PZ actually loads and routes mod Lua
@@ -96,17 +99,15 @@ earlier renumbers everything after it, silently.
 
 **Geometry:** both facings are diagonal and mirrored about the vertical axis;
 there is no flat-horizontal one. Stakes 18px above the ground line, tanglefoot
-6px. `tools/process_sprite_render.py` is the pipeline; its docstring has the
-working prompts.
+6px. `tools/process_sprite_render.py` is the pipeline, prompts in its docstring.
 
-**The `.tiles` file:** `42/media/deadwire_01.tiles` is what the game loads.
-There is no `.tiles.txt` any more — the game never opened it, and checking it
-proved nothing about the binary beside it. The fifth per-tileset field is the
-**tileset number**, bounded 1..512 by `LoadTileDefinitions`; it is NOT the
-mod.info tiledef id, whose range is 100..8190. `tools/pz-tilesheet` used to
-write the tiledef id there, so a future id above 512 would have made the game
-refuse the file and every world sprite vanish with no error. Fixed to write 1.
-Our shipped file still says 200, which is legal and loads.
+**The `.tiles` file:** `42/media/deadwire_01.tiles` is what the game loads;
+there is no `.tiles.txt` any more, the game never opened it. The fifth
+per-tileset field is the **tileset number**, bounded 1..512 by
+`LoadTileDefinitions`, NOT the mod.info tiledef id whose range is 100..8190.
+`tools/pz-tilesheet` used to write the tiledef id there, so a future id above
+512 would have made the game refuse the file and every world sprite vanish with
+no error. Fixed to write 1; our shipped file says 200, legal and loads.
 
 ## Name verification: run the script, do not check by hand
 
@@ -206,27 +207,57 @@ in `tests/run.lua` is what catches that.
 
 ## Open Issues
 
-Ten open. #47 closed in Session 24; all fourteen mod files now load and run in
-the suite.
+Twelve open, and the bodies on GitHub carry the detail -- they were rewritten
+in Session 24, so read the issue rather than trusting a summary here.
 
-- **No game needed:** #50 destroyed single-use wires leave no remnant -- needs
-  a decision on what item, not an API lookup.
-- **With the game:** #25 smoke test (A and B done Session 23, C-G open). #12
-  loot injection confirmed at 11/11 tables, needs one real container sighting.
-  #49 the tin can trigger sound was too quiet; two of three assets gain-boosted,
-  the boost itself unverified in a running game.
-- **Needs a decision from Rob:** #27 Tier 1 balance (bell and reinforced are the
-  same wire with a different noise). #45 wire damage, spans and tanglefoot wear.
-  #46 camouflage materials, item names already verified. My recommendation is a
-  comment on #27 and #45; #46 is written as Rob decided it.
-- **Art/audio, not Lua:** #48 the outline box is sized to the object's engine
-  bounds, not the sprite art, a real setOutlineHighlight limitation. #51 the
-  wire sprite draws in front of the character, needs the tiles pipeline.
-  tin_can_rattle.ogg needs a mastering pass, already at its gain ceiling.
-- **Later phase:** #13 Tier 3. No adjacency graph yet; compute a circuit id per
-  tile at place and remove time, never on the zombie tick.
+- **Next, in game:** #54 the Tier 3 probe pass, #49 the tin can audio check,
+  #25 Parts C-G of the test plan, #12 one real container sighting.
+- **Offline, no decision needed:** #53 circuit adjacency, the one genuinely new
+  piece of code Tier 3 needs. #46 camouflage materials, already decided as Rob
+  wanted it, just needs building.
+- **Needs a decision from Rob:** #27 bell and reinforced are the same wire with
+  a different noise. #45 wire damage, spans, tanglefoot wear.
+- **Blocked on the probes:** #13 electrified deadwire, #52 electrified fence.
+- **Art, batch them:** #48 outline box sized to engine bounds not sprite art,
+  #51 wire draws in front of the character, tin_can_rattle.ogg needs mastering.
 
 ## Recent sessions
+
+### Session 24 (2026-09-08): eight dark files lit, and Tier 3 designed
+
+Three commits here plus one in pz-test-pilot, and the mod stopped carrying code
+nobody had ever executed.
+
+**All fourteen files now load in the suite (e436ee6, #47).** Eight ran in no
+test at all. `run_tests.bat` compiles every mod `.lua` first, then runs the
+suite; 201 tests became 330 across seven new files. Twenty mutations, all
+caught. The real find was in the suite itself: `test_detection.lua` nils handler
+entries per test and never restored them, so once TriggerHandlers loaded, every
+file after it silently ran against zero registered handlers.
+
+**A destroyed wire leaves its parts (1fb8faf, #50).** One roll per wire over its
+durable parts; a wire taken up by hand returns the whole kit with no roll. Cord
+is never salvaged, which dissolved the design knot -- the recipes accept any of
+three cords, the kit records none, and the cord is what snapped. 330 to 346.
+Mutation testing caught two stubs that had blessed real bugs: `ZombRand`
+answered the same number forever, hiding one-roll-per-part, and accepted a
+bound below 1, hiding a range computed backwards.
+
+**Tier 3 designed and split (#13, #52, #53, #54).** Rob's framing: a farmer and
+a survivalist are different people. A pasture fence is meant to be seen, since
+visibility is the deterrent; an electrified deadwire is meant not to be. Two
+API claims in the old #13 body were wrong and would each have cost a session --
+`isGeneratorPoweringSquare()` is on `IsoChunk`, not `IsoGridSquare`, and
+`setGeneratorRange` takes zero arguments. The power model is one
+`square:haveElectricity()` call on the energiser's square, which is
+radius-agnostic and so satisfied by any power mod energising a square the
+vanilla way. `GeneratorNetwork_42` in Rob's own mods folder does exactly that,
+so the compatibility claim has a working example rather than a hope.
+
+**pz-test-pilot pushed (cb03c49).** Session 23's smoke handlers had sat
+uncommitted for a session. Four `deadwire_probe_*` handlers added for #54.
+Corrected that repo's CLAUDE.md, which claimed `loadstring()` works; it does
+not, and that sentence sent Session 23 down a blind alley.
 
 ### Session 23 (2026-09-08): watched it work, for the first time
 
@@ -267,34 +298,3 @@ tiles/sprite anchor problem with no Lua-side cause (#51).
 
 **Four issues filed, one commented with full results (#25).** Ends with 11
 open, tree clean except the two boosted `.ogg` files.
-
-### Session 22 (2026-09-08): the paper work finished, and a test plan
-
-Five issues closed in three commits, and the mod stopped being a thing with
-known holes in it. It is now a thing nobody has watched.
-
-**Authority and the way in (de322da).** `PlaceWire` is gone: a server command
-that trusted whatever coordinates it was handed, with no proximity check, that
-nothing ever called. Deleting it took the per-player wire cap and the placement
-log with it, which `verify_names` caught on its own -- two options came back as
-declared-but-unread within a minute (now Key Rule 13). Both moved to
-`ISDeadwireTripLine:create`, the path the engine actually uses. `CamouflageWire`
-gained the owner check it never had, `RemoveWire` gained a distance bound, and
-camouflage gained a context menu, which it had never had at all. Both menu
-options walk the player to the wire and run a timed action, because a context
-menu opens on any tile on screen and the new bound would have refused most
-clicks -- which would have been #31 all over again.
-
-**Text and outline (4e84ef2, 062101e).** `maxSpan` and `proneDuration` deleted:
-declared per type, read by nothing, and promising spans and prone timers in the
-tooltips. 76 orphan label lines gone from `Sandbox.json`, and `verify_names` now
-refuses a label with no option as well as an option with no label. The rain
-tooltip said "per hour" and the code runs every ten in-game minutes, found while
-writing the test plan -- which is worth noting as a method, since prose a person
-will act on has to bottom out in the code. `PLAN.md` carries a banner naming
-every place it disagrees with the mod. Owner outline (#29) walks every wire now,
-coloured per type.
-
-**The tests grew where the risk was.** 187 to 201. `ISDeadwireTripLine` had no
-tests at all before this, which is exactly why the moved gates could have gone
-missing quietly. Six mutations, all six bit.
