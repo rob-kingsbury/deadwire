@@ -6,7 +6,7 @@ description: PZ mod — perimeter trip lines and electric fencing for Project Zo
 last_session: 22
 last_updated: 2026-09-08
 continue_with: "Rob runs docs/TEST-PLAN.md in a real game. Everything on paper is done; nothing else is worth building until something has been watched working."
-blockers: "Every remaining issue needs either a running game (#25, #12), a dedicated server (the MP half of #25), or a balance decision from Rob (#27, #45, #13)."
+blockers: "Every remaining issue needs either a running game (#25, #12) or a decision from Rob (#27, #45, #46, #13). None of them is blocked on code."
 ```
 
 ## To Resume
@@ -14,20 +14,22 @@ blockers: "Every remaining issue needs either a running game (#25, #12), a dedic
 ```
 Deadwire v0.1.1, Session 23. Start from origin/main (git pull).
 
-Tree clean, 5 issues open, nothing in flight. Last code change is 062101e;
+Tree clean, 6 issues open, nothing in flight. Last code change is 062101e;
 the handoff commit sits on top of it.
 
-Session 22 finished the paper work. Five issues closed: #36 #42 (authority and
-the camouflage entry point), #38 #44 (text down to what ships, orphan labels),
-#29 (owner outline). One new issue, #45, is the behaviour half of #38.
+Session 22 finished the paper work. Five closed: #36 #42 (authority and the
+camouflage entry point), #38 #44 (text down to what ships, orphan labels), #29
+(owner outline). Two filed: #45 the behaviour half of #38, #46 camouflage
+materials. Recommendations for #45 and #27 are recorded as comments on those
+issues, awaiting Rob's call.
 
 THE MOD IS NOW BELIEVED-CORRECT AND STILL UNWATCHED. docs/TEST-PLAN.md is the
 script: seven parts, single player, concrete steps and the exact log lines.
 Part A is five minutes and tells you whether the two new files even load.
 
-Do not build anything else first. Every open issue is now gated on either a
-running game or a decision from Rob, which is the state the whole review was
-aiming at, and building on top of an unrun mod is how this project got here.
+Do not build anything else first. Every open issue is gated on a running game
+or a decision from Rob, which is the state the whole review was aiming at, and
+building on top of an unrun mod is how this project got here.
 
 When Rob has run it: the results close #25 and #12, and whatever it finds is
 the next session.
@@ -35,7 +37,7 @@ the next session.
 Gates:  python scripts/verify_names.py  |  run_tests.bat (PowerShell, not Git
 Bash)  |  python tools/validate_pack.py
 Plus, worth adding to the routine: every mod .lua through `lua -e loadfile`.
-14 files, catches a syntax error in the files no test loads (UI, WireActions,
+14 files, catches a syntax error in the six no test loads (UI, WireActions,
 CamoVisibility, EventHandlers, TriggerHandlers, ClientCommands).
 
 Harness: cd c:/xampp/htdocs/pz-test-pilot, then scripts/cmd.py get_status or
@@ -83,11 +85,9 @@ spawning, all 4 recipes registered and translated, item and crafting categories
 resolving, `SandboxVars.Deadwire` read through `getSandbox`, loot injection at
 **11/11 tables, chance 12**, and all 10 sprites as distinct 64x128 textures.
 
-**Everything else is unverified.** Sounds, camo visibility, camo rain decay,
-what happens when a zombie walks into a wire, and the whole `createWire` path —
-Session 18 placed raw `IsoObject`s, never the mod's own `IsoThumpable`. MP
-cannot be tested in single player at all, which leaves #32's rebuild, #33's join
-sync and #34's camo-after-restart untested by anything but reasoning.
+**Everything else is unverified**, including the whole `createWire` path —
+Session 18 placed raw `IsoObject`s, never the mod's own `IsoThumpable`.
+`docs/TEST-PLAN.md` is the full list of what that leaves and how to check it.
 
 ## Sprites
 
@@ -122,12 +122,12 @@ Our shipped file still says 200, which is legal and loads.
 python scripts/verify_names.py          # exit 0 = everything resolves
 ```
 
-Resolves **271** references against the installed 42.20.4: perks, capabilities,
+Resolves **308** references against the installed 42.20.4: perks, capabilities,
 body parts, `Base.X` items, distribution names, icon PNGs, sprite names, sandbox
-options, translation filenames, category and page label keys, the tiledef id
-range, **event names, sound names, the binary `.tiles` header, and Java method
-existence and arity**. `scripts/pzclass.py` is the Java `.class` reader
-underneath and now walks the superclass chain.
+options **in both directions**, translation filenames, category and page label
+keys, the tiledef id range, event names, sound names, the binary `.tiles`
+header, and Java method existence and arity. `scripts/pzclass.py` is the Java
+`.class` reader underneath and walks the superclass chain.
 
 `--update-events` regenerates `tests/pz_events.lua`, the allow-list
 `tests/stubs.lua` uses to refuse an event name the game does not have. The gate
@@ -177,25 +177,33 @@ page label needs `Sandbox_<page>` in `Sandbox.json`.
     how far away the reporting player was, when the question was where the
     zombie is. Re-derive from world state server-side (#31).
 12. **Green tests are not evidence.** Put the bug back and confirm they fail.
-    Every fix in Session 21 was checked that way, and two of the checks that
-    looked fine did not bite until the mutation was made faithful.
+    Every fix in Sessions 21 and 22 was checked that way, and two of the checks
+    that looked fine did not bite until the mutation was made faithful.
+13. **Dead code is still somewhere things live.** "Nothing calls it" is a
+    complete answer to the wrong question. Deleting the uncalled `PlaceWire`
+    handler also deleted the only reader of `WireMaxPerPlayer` and
+    `LogWirePlacements`. Before deleting a path, ask what it is the only place
+    for. verify_names caught this one; it will not always be there.
 
 ## Architecture
 
-Shared (WireNetwork, Config) → Client (Detection, UI, TriggerHandlers,
-CamoVisibility, EventHandlers) → Server (ServerCommands, WireManager,
-BuildActions, LootDistribution, CamoDegradation). Client `sendClientCommand`,
-server validates, `sendServerCommand` broadcasts. `ISBuildingObject:derive()`
-files MUST live in `server/`. Cooldowns are **real seconds** (`os.time`),
-broadcast as a *duration* because clocks are independently skewed, and declared
-per wire type with no fallback.
+Shared (WireNetwork, Config) → Client (Detection, UI, WireActions,
+TriggerHandlers, CamoVisibility, EventHandlers) → Server (ServerCommands,
+WireManager, BuildActions, LootDistribution, CamoDegradation). Client
+`sendClientCommand`, server validates, `sendServerCommand` broadcasts.
+`ISBuildingObject:derive()` files MUST live in `server/`. Cooldowns are **real
+seconds** (`os.time`), broadcast as a *duration* because clocks are
+independently skewed, and declared per wire type with no fallback.
+
+Placement is `ISDeadwireTripLine` only; there is no PlaceWire command. Acting on
+a placed wire goes through `luautils.walkAdj` plus `ISDeadwireWireAction`, so
+the player is standing next to it when the server's four-tile bound is checked.
 
 ## Gates
 
 All local, no CI. `run_tests.bat` **201 pass** (PowerShell, not Git Bash --
 `cmd //c` fails on the path, not the tests). `python scripts/verify_names.py`
-**308 refs**. `python tools/validate_pack.py` **130 checks**. In-game via PZ
-Test Pilot is partially run; see "What is actually verified" above.
+**308 refs**. `python tools/validate_pack.py` **130 checks**.
 
 A fourth gate is worth running and is not scripted yet: every mod `.lua`
 through `lua -e "loadfile"`. Six of the fourteen files are loaded by no test,
@@ -203,15 +211,16 @@ so a syntax error in them is invisible until the game refuses the file.
 
 ## Open Issues
 
-Five open, and **every one of them is now blocked on something outside the
-code.** That is the point the review was driving at.
+Six open, and **every one is blocked on something outside the code.** That is
+the point the review was driving at.
 
 - **Needs a running game:** #25 the smoke test, now scripted in
-  `docs/TEST-PLAN.md`. #12 loot injection is confirmed at 11/11 tables and
-  needs one real container sighting to close.
-- **Needs Rob:** #27 Tier 1 balance. #45 is the behaviour half of #38 -- wire
-  damage, multi-tile spans, tanglefoot wear -- and every part of it is a design
-  call, not a patch.
+  `docs/TEST-PLAN.md`. #12 loot injection is confirmed at 11/11 tables and needs
+  one real container sighting to close.
+- **Needs Rob:** #27 Tier 1 balance (bell and reinforced are the same wire with
+  a different noise). #45 wire damage, spans and tanglefoot wear. #46 camouflage
+  materials, one grass or hay plus one twigs, item names already verified. My
+  recommendation is a comment on #27 and #45; #46 is written as Rob decided it.
 - **Later phase:** #13 Tier 3. No adjacency graph yet; compute a circuit id per
   tile at place and remove time, never on the zombie tick.
 
@@ -221,34 +230,34 @@ Phase 1 is code-complete. Nothing in it has been watched working.
 
 ### Session 22 (2026-09-08): the paper work finished, and a test plan
 
-Five issues closed in two commits, and the mod stopped being a thing with known
-holes in it. It is now a thing nobody has watched.
+Five issues closed in three commits, and the mod stopped being a thing with
+known holes in it. It is now a thing nobody has watched.
 
 **Authority and the way in (de322da).** `PlaceWire` is gone: a server command
 that trusted whatever coordinates it was handed, with no proximity check, that
 nothing ever called. Deleting it took the per-player wire cap and the placement
 log with it, which `verify_names` caught on its own -- two options came back as
-declared-but-unread within a minute. Both moved to `ISDeadwireTripLine:create`,
-the path the engine actually uses. `CamouflageWire` gained the owner check it
-never had, `RemoveWire` gained a distance bound, and camouflage gained a context
-menu, which it had never had at all. Both menu options walk the player to the
-wire and run a timed action, because a context menu opens on any tile on screen
-and the new bound would have refused most clicks.
+declared-but-unread within a minute (now Key Rule 13). Both moved to
+`ISDeadwireTripLine:create`, the path the engine actually uses. `CamouflageWire`
+gained the owner check it never had, `RemoveWire` gained a distance bound, and
+camouflage gained a context menu, which it had never had at all. Both menu
+options walk the player to the wire and run a timed action, because a context
+menu opens on any tile on screen and the new bound would have refused most
+clicks -- which would have been #31 all over again.
 
 **Text and outline (4e84ef2, 062101e).** `maxSpan` and `proneDuration` deleted:
 declared per type, read by nothing, and promising spans and prone timers in the
-tooltips. 76 orphan label lines gone from `Sandbox.json`, and `verify_names`
-now refuses a label with no option as well as an option with no label. The rain
-tooltip said "per hour" and the code runs every ten in-game minutes, which is
-the same defect one more time and was found while writing the test plan.
-`PLAN.md` carries a banner naming every place it disagrees with the code.
-Owner outline (#29) walks every wire now, not just camouflaged ones, coloured
-per type.
+tooltips. 76 orphan label lines gone from `Sandbox.json`, and `verify_names` now
+refuses a label with no option as well as an option with no label. The rain
+tooltip said "per hour" and the code runs every ten in-game minutes, found while
+writing the test plan -- which is worth noting as a method, since prose a person
+will act on has to bottom out in the code. `PLAN.md` carries a banner naming
+every place it disagrees with the mod. Owner outline (#29) walks every wire now,
+coloured per type.
 
 **The tests grew where the risk was.** 187 to 201. `ISDeadwireTripLine` had no
 tests at all before this, which is exactly why the moved gates could have gone
-missing quietly. Every gate was mutation-checked: bug back in, specific tests
-confirmed failing, six mutations, all six bit.
+missing quietly. Six mutations, all six bit.
 
 ### Session 21 (2026-09-06): the review executed, and the checkers made honest
 
@@ -276,20 +285,9 @@ generated from the jar. Deleted `deadwire_01.tiles.txt`, which the game never
 read and which this checker had been verifying instead of the real file. Fixed
 `tools/pz-tilesheet` writing the tiledef id into the tileset-number field.
 
-Every fix was mutation-checked: the bug put back, the tests confirmed failing.
-That caught two tests that looked like they covered a fix and did not. On its
-first run the new Java check flagged the checker's own wrong class path for
-`Role`, which is the behaviour it exists for.
-
 ### Session 20 (2026-09-06): the review
 
 A Fable agent read all 2,136 lines against the installed jar with `javap`, not
 inference. Fourteen findings, eleven confirmed, filed as #31 to #43. Report in
 `docs/REVIEW-30.md`. Established the five run-mode facts above, and found two of
 PLAN.md's own "expected behaviour" lines were fiction.
-
-### Session 19 (2026-09-05/06): all art finished, sounds converted
-
-Ten world sprites and five inventory icons replaced. Rob's bell and tin can
-takes arrived as Ogg **Opus stereo**, two silent failures stacked: FMOD does not
-decode Opus in an .ogg container, and stereo breaks 3D audio. Now Vorbis mono.
