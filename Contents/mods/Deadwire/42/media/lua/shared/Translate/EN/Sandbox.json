@@ -67,8 +67,8 @@
     "Sandbox_Deadwire_CamoMaxDurability": "Camouflage starting durability",
     "Sandbox_Deadwire_CamoMaxDurability_tooltip": "Fresh camouflage starts with this much durability. Higher values mean it lasts longer before wearing off.",
 
-    "Sandbox_Deadwire_CamoRainDegradeRate": "Camouflage durability lost per hour of rain",
-    "Sandbox_Deadwire_CamoRainDegradeRate_tooltip": "Rain washes away camouflage over time. Set to 0 to disable rain degradation.",
+    "Sandbox_Deadwire_CamoRainDegradeRate": "Camouflage durability lost per ten minutes of rain",
+    "Sandbox_Deadwire_CamoRainDegradeRate_tooltip": "Checked every ten in-game minutes while it is raining, and scaled by how hard. Fresh camouflage starts at 100, so at the default a wire is bare after a few hours of steady rain. Set to 0 to disable rain degradation.",
 
     "Sandbox_Deadwire_CamoStormMultiplier": "Storm degradation multiplier",
     "Sandbox_Deadwire_CamoStormMultiplier_tooltip": "During thunderstorms, camouflage degrades this many times faster than normal rain.",
