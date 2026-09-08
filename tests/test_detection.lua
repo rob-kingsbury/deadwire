@@ -5,6 +5,18 @@
 -- Detection fires through Events.OnZombieUpdate / Events.OnPlayerUpdate.
 -- We replace DeadwireDetection.zombieHandlers / .playerHandlers per-test
 -- to track dispatch, and use _getSoundCalls() to detect the fallback path.
+--
+-- Those per-test swaps set the entry back to nil rather than to what was there
+-- before, which used to be harmless because TriggerHandlers.lua was loaded by
+-- no test. It is loaded now (#47), so leaving the tables gutted would silently
+-- unregister all eight real handlers for every file that runs after this one --
+-- and tests asserting the real behaviour would see the generic fallback path
+-- instead, and pass or fail for reasons that have nothing to do with the code
+-- under test. Snapshot here, restore at the bottom of the file.
+local _realZombieHandlers = {}
+local _realPlayerHandlers = {}
+for k, v in pairs(DeadwireDetection.zombieHandlers) do _realZombieHandlers[k] = v end
+for k, v in pairs(DeadwireDetection.playerHandlers) do _realPlayerHandlers[k] = v end
 
 suite("Detection: zombie on wire tile")
 
@@ -474,3 +486,8 @@ test("false: zombies are unaffected by the faction check", function()
 
     assert_true(called, "faction immunity is player-only")
 end)
+
+-- Put the eight real handlers back, so the files after this one test the mod
+-- rather than the holes this file left in it.
+DeadwireDetection.zombieHandlers = _realZombieHandlers
+DeadwireDetection.playerHandlers = _realPlayerHandlers

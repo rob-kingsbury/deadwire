@@ -236,22 +236,24 @@ the player is standing next to it when the server's four-tile bound is checked.
 
 ## Gates
 
-All local, no CI. `run_tests.bat` **201 pass** (PowerShell, not Git Bash --
-`cmd //c` fails on the path, not the tests). `python scripts/verify_names.py`
-**308 refs**. `python tools/validate_pack.py` **130 checks**.
+All local, no CI. `run_tests.bat` runs two gates in order and stops on the
+first: `tests/syntax_check.lua` compiles **all 14** mod `.lua` files, then the
+suite runs **330 pass**. PowerShell, not Git Bash -- `cmd //c` fails on the
+path, not the tests. `python scripts/verify_names.py` **308 refs**. `python
+tools/validate_pack.py` **130 checks**.
 
-A fourth gate is worth running and is not scripted yet: every mod `.lua`
-through `lua -e "loadfile"`. Six of the fourteen files are loaded by no test,
-so a syntax error in them is invisible until the game refuses the file.
+The syntax gate enumerates the mod tree rather than carrying a file list, and
+finding zero files is a failure rather than a pass. It compiles without
+executing, so it cannot catch a file-scope call that throws at runtime; loading
+all fourteen modules in `tests/run.lua` is what catches that.
 
 ## Open Issues
 
-Eleven open. #47 and #50 can be worked without either the game or a decision.
+Ten open. #47 closed in Session 24; all fourteen mod files now load and run in
+the suite.
 
-- **Buildable now, no game needed:** #47 eight of fourteen Lua files execute in
-  no test. Six were written in Session 22, including the whole owner outline.
-  #50 destroyed single-use wires leave no remnant -- needs a decision on what
-  item, not an API lookup.
+- **Buildable now, no game needed:** #50 destroyed single-use wires leave no
+  remnant -- needs a decision on what item, not an API lookup.
 - **Next session, with the game Rob is providing:** #25 the smoke test (Parts A
   and B done at Session 23, C-G still open). #12 loot injection is confirmed at
   11/11 tables, reconfirmed live at Session 23, and needs one real container

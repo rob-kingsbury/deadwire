@@ -4,4 +4,7 @@ if not exist "%LUA_EXE%" (
     echo ERROR: Lua not found at %LUA_EXE%
     exit /b 1
 )
+"%LUA_EXE%" tests/syntax_check.lua
+if errorlevel 1 exit /b 1
+
 "%LUA_EXE%" tests/run.lua

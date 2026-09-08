@@ -150,11 +150,22 @@ function _moveTo(entity, x, y, z)
     return _placeOn(entity, x, y, z)
 end
 
+-- setDrag is what the placement menu hands the engine: a build object the
+-- player then positions and clicks down. Recorded rather than executed,
+-- because "the menu handed the engine the right ISDeadwireTripLine" is the
+-- claim UI.lua is responsible for; whether that object then places a wire is
+-- BuildActions' claim, and it has its own tests.
+_dragged = {}
+
 local _cell = {
     getGridSquare = function(self, x, y, z)
         return _squares[x .. "," .. y .. "," .. z]
     end,
+    setDrag = function(self, obj, playerNum)
+        table.insert(_dragged, { obj = obj, playerNum = playerNum })
+    end,
 }
+function _lastDragged() return _dragged[#_dragged] end
 function getCell()  return _cell end
 function getWorld() return { getCell = function() return _cell end } end
 function _clearSquares() _squares = {} end
@@ -237,7 +248,14 @@ IsoThumpable = {
             -- the camo index.
             setAlphaAndTarget    = function(self, a) self._alpha = a end,
             setOutlineHighlight  = function(self, v) self._outline = v end,
-            setOutlineHighlightCol = function() end,
+            -- The colour is recorded, not discarded: the owner outline is
+            -- keyed by wire type so a perimeter of mixed wires is readable at
+            -- a glance (#29), and "an outline appeared" would pass even if
+            -- every type came out the same white.
+            _outlineCol = nil,
+            setOutlineHighlightCol = function(self, r, g, b, a)
+                self._outlineCol = { r, g, b, a }
+            end,
         }
         if sq then sq:AddSpecialObject(obj) end
         return obj
@@ -329,9 +347,23 @@ function getWorldSoundManager()
         end
     }
 end
+-- PlayWorldSound is the audible clip a player hears, as opposed to
+-- addSound above, which is the noise zombies path towards. They are different
+-- systems and Deadwire calls both, so recording only one would have let a
+-- silent wire pass a test named for its sound.
+-- Real signature: PlayWorldSound(name, square, floor, radius, volume, doWorldSound)
+local _worldSounds = {}
 function getSoundManager()
-    return { PlayWorldSound = function() end }
+    return {
+        PlayWorldSound = function(_, name, sq, floor, radius, volume, doWorld)
+            table.insert(_worldSounds, {
+                name = name, sq = sq, radius = radius, volume = volume,
+            })
+        end
+    }
 end
+function _getWorldSounds() return _worldSounds end
+function _lastWorldSound() return _worldSounds[#_worldSounds] end
 function _clearSounds() _soundCalls = {} end
 function _getSoundCalls() return _soundCalls end
 
@@ -344,12 +376,31 @@ function _mockZombie(x, y, z, alive)
     local z_ = {
         _class      = "IsoZombie",
         _sq         = sq,
+        _x = x, _y = y, _z = z,
         isAlive     = function() return alive ~= false end,
         getSquare   = function(self) return self._sq end,
         getModData  = function() return modData end,
         getUsername = function() return nil end,
+        getX        = function(self) return self._x end,
+        getY        = function(self) return self._y end,
+        getZ        = function(self) return self._z end,
+
+        -- Tanglefoot skips crawlers unless configured otherwise, and knocks the
+        -- rest down. Standing by default; _mockCrawler below is the other case.
+        _crawling    = false,
+        _knockedDown = false,
+        isCrawling   = function(self) return self._crawling end,
+        knockDown    = function(self, _fall) self._knockedDown = true end,
     }
     return _placeOn(z_, x, y, z)
+end
+
+-- A zombie already on the floor. Tanglefoot leaves these alone unless
+-- TanglefootAffectsCrawlers is on.
+function _mockCrawler(x, y, z)
+    local zed = _mockZombie(x, y, z)
+    zed._crawling = true
+    return zed
 end
 
 -- Inventory stub: only the container methods Deadwire actually calls.
@@ -401,6 +452,7 @@ function _mockPlayer(x, y, z, username)
     local p = {
         _class        = "IsoPlayer",
         _sq           = sq,
+        _x = x, _y = y, _z = z,
         isAlive       = function() return true end,
         getSquare     = function(self) return self._sq end,
         getModData    = function() return modData end,
@@ -411,9 +463,54 @@ function _mockPlayer(x, y, z, username)
         getRole       = function() return {
             hasCapability = function() return false end
         } end,
+
+        -- Position. CamoVisibility floors these to pick the tiles in range, so
+        -- a fractional coordinate is the honest shape; tests that care set _x
+        -- directly.
+        getX = function(self) return self._x end,
+        getY = function(self) return self._y end,
+        getZ = function(self) return self._z end,
+
+        -- Skills. Level 0 unless a test says otherwise, and reading a perk this
+        -- player has no entry for gives 0 rather than nil -- the real
+        -- getPerkLevel does the same, which is precisely why Perks.Foraging
+        -- being nil went unnoticed for so long (#17).
+        _perkLevels  = {},
+        getPerkLevel = function(self, perk) return self._perkLevels[perk] or 0 end,
+
+        -- Tanglefoot's player branch: a stagger and optional foot damage.
+        _bumpType = nil,
+        _variables = {},
+        setBumpType = function(self, t) self._bumpType = t end,
+        setVariable = function(self, k, v) self._variables[k] = v end,
+        _damage = {},
+        getBodyDamage = function(self)
+            local dmg = self._damage
+            return {
+                getBodyPart = function(_, partType)
+                    return {
+                        AddDamage = function(_, amount)
+                            dmg[partType] = (dmg[partType] or 0) + amount
+                        end,
+                    }
+                end,
+            }
+        end,
+
+        -- Timed actions. Instant mode is a debug convenience in the real game
+        -- and off here, so maxTime arrives as the caller passed it.
+        isTimedActionInstant = function() return false end,
+        _facing = nil,
+        faceLocation = function(self, fx, fy) self._facing = { x = fx, y = fy } end,
     }
     return _placeOn(p, x, y, z)
 end
+
+-- Set a skill level on a mock player.
+function _setPerk(player, perk, level) player._perkLevels[perk] = level end
+
+-- How much damage a body part has taken, for the tanglefoot player branch.
+function _getBodyPartDamage(player, partType) return player._damage[partType] or 0 end
 
 function _mockAdmin(x, y, z, username)
     local p = _mockPlayer(x, y, z, username)
@@ -433,6 +530,203 @@ function _mockRolelessPlayer(x, y, z, username)
 end
 
 -----------------------------------------------------------------
+-- Timed action queue
+--
+-- ISTimedActionQueue.add is called with dot syntax by UI.lua. Recording the
+-- action rather than running it is the point: the assertion worth making is
+-- "the right action, for the right tile, was queued", and running it here
+-- would skip the walk the queue exists to wait for.
+-----------------------------------------------------------------
+_queuedActions = {}
+ISTimedActionQueue = {
+    add = function(action)
+        table.insert(_queuedActions, action)
+        return action
+    end,
+}
+function _lastQueuedAction() return _queuedActions[#_queuedActions] end
+
+-----------------------------------------------------------------
+-- luautils.walkAdj
+--
+-- Real signature: luautils.walkAdj(character, square, toDoor) -> boolean, false
+-- when no adjacent tile is reachable. Defaults to true, so a module that
+-- forgets to check the result is still exercised on the path that matters; a
+-- test that cares about the refusal calls _setWalkAdj(false) itself.
+-----------------------------------------------------------------
+local _walkAdjResult = true
+_walkAdjCalls = {}
+luautils = luautils or {}
+luautils.walkAdj = function(character, square, toDoor)
+    table.insert(_walkAdjCalls, {
+        character = character, square = square, toDoor = toDoor,
+    })
+    return _walkAdjResult
+end
+function _setWalkAdj(v) _walkAdjResult = v and true or false end
+
+-----------------------------------------------------------------
+-- Context menu
+--
+-- Real ISContextMenu:addOption(name, target, onSelect, ...) returns the option
+-- table, and addSubMenu(option, submenu) hangs a submenu off one. Options keep
+-- their callback and arguments, so a test can assert what clicking the option
+-- would actually do rather than only that a label appeared.
+-----------------------------------------------------------------
+function _makeContextMenu()
+    local menu = { options = {}, subMenus = {} }
+    menu.addOption = function(self, name, target, onSelect, ...)
+        local opt = {
+            name = name, target = target, onSelect = onSelect, args = { ... },
+        }
+        table.insert(self.options, opt)
+        return opt
+    end
+    menu.addSubMenu = function(self, option, submenu)
+        table.insert(self.subMenus, { option = option, menu = submenu })
+    end
+    return menu
+end
+
+ISContextMenu = {
+    getNew = function(_, _parent) return _makeContextMenu() end,
+}
+
+-- Labels in order, for asserting which options a menu offered.
+function _optionLabels(menu)
+    local names = {}
+    for _, opt in ipairs(menu.options) do table.insert(names, opt.name) end
+    return names
+end
+
+-- Find an option by exact label. Returns nil when absent, which is the
+-- assertion most of the UI tests are making.
+function _findOption(menu, label)
+    for _, opt in ipairs(menu.options) do
+        if opt.name == label then return opt end
+    end
+    return nil
+end
+
+-- Run an option's callback the way the engine does:
+-- onSelect(target, unpack(args)).
+function _clickOption(opt)
+    return opt.onSelect(opt.target, table.unpack(opt.args))
+end
+
+-- The submenu attached to a given parent option, or nil.
+function _subMenuOf(menu, option)
+    for _, entry in ipairs(menu.subMenus) do
+        if entry.option == option then return entry.menu end
+    end
+    return nil
+end
+
+-----------------------------------------------------------------
+-- Local player and admin status
+--
+-- getPlayer() is the local player; getSpecificPlayer(n) is the player behind a
+-- given split-screen index. Both start nil: a module that reads one without a
+-- test having set it gets nil and has to cope, which is what the real game
+-- hands it before a player exists.
+-----------------------------------------------------------------
+local _localPlayer = nil
+local _specificPlayers = {}
+local _isAdmin = false
+
+function getPlayer() return _localPlayer end
+function getSpecificPlayer(playerNum) return _specificPlayers[playerNum or 0] end
+function isAdmin() return _isAdmin end
+
+function _setLocalPlayer(p) _localPlayer = p end
+function _setSpecificPlayer(n, p) _specificPlayers[n] = p end
+function _setAdmin(v) _isAdmin = v and true or false end
+
+-----------------------------------------------------------------
+-- Perks
+--
+-- PlantScavenging is the real 42.20 name for the skill shown in-game as
+-- "Foraging". Perks.Foraging does not exist: reading it yields nil,
+-- getPerkLevel(nil) returns 0, and every player sits permanently at level 0 --
+-- which made camouflaged wires invisible to everyone (#17).
+--
+-- So this refuses any other key rather than answering it. verify_names.py is
+-- the authority on which perk names the jar has; this table only makes the
+-- absence loud instead of silent.
+-----------------------------------------------------------------
+local KNOWN_PERKS = { PlantScavenging = "PlantScavenging" }
+Perks = setmetatable({}, {
+    __index = function(_, k)
+        if KNOWN_PERKS[k] then return KNOWN_PERKS[k] end
+        error("Perks." .. tostring(k) .. " is not a perk name this game has.\n"
+            .. "Reading it yields nil, getPerkLevel(nil) returns 0, and every\n"
+            .. "player is silently level 0 forever (#17). Check the name with\n"
+            .. "scripts/verify_names.py.", 2)
+    end,
+})
+
+-----------------------------------------------------------------
+-- BodyPartType
+--
+-- Only the member the mod uses, for the same reason Capability declares only
+-- UseBuildCheat: a table that answers whatever it is asked cannot detect a
+-- typo.
+-----------------------------------------------------------------
+BodyPartType = { Foot_L = "Foot_L" }
+
+-----------------------------------------------------------------
+-- Climate
+--
+-- getClimateManager():getRainIntensity() is the real path. The old code called
+-- Climate.GetInstance():getRainStrength(), and no part of that exists in
+-- 42.20, so weather never degraded camouflage once (#18). Starts dry, so a
+-- test that wants rain has to say so.
+-----------------------------------------------------------------
+local _rainIntensity = 0
+function getClimateManager()
+    return { getRainIntensity = function() return _rainIntensity end }
+end
+function _setRainIntensity(v) _rainIntensity = v end
+
+-----------------------------------------------------------------
+-- ZombRand
+--
+-- Real ZombRand(n) returns an integer in [0, n-1]. Fixed rather than random:
+-- a trip-chance test that rolls real dice proves nothing repeatable.
+-----------------------------------------------------------------
+local _zombRandValue = 0
+function ZombRand(n) return _zombRandValue % (n or 1) end
+function _setZombRand(v) _zombRandValue = v end
+
+-----------------------------------------------------------------
+-- ProceduralDistributions
+--
+-- Starts empty on purpose. LootDistribution warns loudly for a name that is
+-- not there, and that warning is the behaviour worth testing, so the stub must
+-- not invent tables. _addDistribution puts a real one in.
+-----------------------------------------------------------------
+ProceduralDistributions = { list = {} }
+function _addDistribution(name)
+    ProceduralDistributions.list[name] = { items = {} }
+    return ProceduralDistributions.list[name]
+end
+
+-----------------------------------------------------------------
+-- World objects for the context menu
+--
+-- OnFillWorldObjectContextMenu is handed a plain array of IsoObjects. UI.lua
+-- walks it looking for the first one with a square, so the mock declares the
+-- class instanceof() is asked about.
+-----------------------------------------------------------------
+function _mockWorldObject(sq)
+    return {
+        _class    = "IsoObject",
+        _sq       = sq,
+        getSquare = function(self) return self._sq end,
+    }
+end
+
+-----------------------------------------------------------------
 -- Global reset: call between test suites for clean slate
 -----------------------------------------------------------------
 function _reset()
@@ -445,6 +739,17 @@ function _reset()
     _sentClient = {}
     _soundCalls = {}
     _factions = {}
+    _worldSounds = {}
+    _dragged = {}
+    _queuedActions = {}
+    _walkAdjCalls = {}
+    _walkAdjResult = true
+    _localPlayer = nil
+    _specificPlayers = {}
+    _isAdmin = false
+    _rainIntensity = 0
+    _zombRandValue = 0
+    ProceduralDistributions.list = {}
     SandboxVars = { Deadwire = {} }
     -- Reset WireNetwork internal state (if loaded)
     if DeadwireNetwork then DeadwireNetwork.clear() end
