@@ -3,22 +3,31 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 25
-last_updated: 2026-09-08
-continue_with: "Next in-game session: the tin can audio check (#49 -- ask him plainly whether he HEARS it) and Parts C-G of docs/TEST-PLAN.md (#25). #13 and #52 are unblocked now (see below) but are design/build work, not probes -- no game needed to start on them."
-blockers: "#27 and #45 need a decision from Rob. #48 and #51 are art, batch them. tin_can_rattle.ogg needs a mastering pass, not another gain boost."
+last_session: 26
+last_updated: 2026-09-10
+continue_with: "In game, verify the #51 sprite fix: restart PZ fully (pack/tiles only load at boot), place a north wire and a west wire, stand beside each. Confirm the wire sits on the ground along one tile edge, half-tile long, and does not draw over a character on the next square. Then the tin can audio check (#49) and Parts C-G of docs/TEST-PLAN.md (#25)."
+blockers: "#27 and #45 need a decision from Rob. #48 (outline box sizing) is very likely the same root cause as #51 -- recheck it live rather than fixing blind. tin_can_rattle.ogg needs a mastering pass, not another gain boost."
 ```
 
 ## To Resume
 
 ```
-Deadwire v0.1.1, Session 26. Start from origin/main. Tree clean, 11 issues open.
+Deadwire v0.1.1, Session 27. Start from origin/main. Tree clean, 10 issues open.
+
+Session 26 fixed #51 (closed) -- world sprites were floating above their tile
+at double length, and separately every north/west facing was swapped. Not yet
+verified live; that is the top of NEXT IN-GAME SESSION below.
 
 Session 25 answered all four Tier 3 unknowns (#54, closed) -- results on #54,
 #13, #52. #13 and #52 are unblocked and can start any time, no game needed.
 
-NEXT IN-GAME SESSION (not urgent): tin can audio check (#49 -- ask Rob plainly
-whether he HEARS it) and Parts C-G of docs/TEST-PLAN.md (#25).
+NEXT IN-GAME SESSION: restart PZ fully first (pack/tiles load at boot only),
+then verify #51 -- place a north-facing and a west-facing wire, stand beside
+each, confirm each sits on the ground along one tile edge and does not draw
+over a character on the next square. Ask Rob plainly what he sees; do not
+declare it fixed on my own read of a screenshot. After that: the tin can audio
+check (#49 -- ask him plainly whether he HEARS it) and Parts C-G of
+docs/TEST-PLAN.md (#25).
 
 TALK TO ROB IN PLAIN WORDS, no issue numbers, no labels only we understand.
 
@@ -90,9 +99,24 @@ earlier renumbers everything after it, silently.
 4/5 reinforced   6/7 tanglefoot   8/9 tincan
 ```
 
-**Geometry:** both facings are diagonal and mirrored about the vertical axis;
-there is no flat-horizontal one. Stakes 18px above the ground line, tanglefoot
-6px. `tools/process_sprite_render.py` is the pipeline, prompts in its docstring.
+**Geometry, corrected Session 26 (#51):** an edge sprite occupies ONE 32px
+tile edge, not the full 64px cell width, and sits bottom-anchored on the tile
+ground diamond -- N(32,96) E(64,112) S(32,128) W(0,112) in a 64x128 cell,
+derived from Tiles1x.floor.pack, not from our own prior art. North-facing art
+descends left to right into x 30..62; west-facing ascends into x 1..33; both
+baseline y=110, matching fencing_01_5/_4 exactly. The old target ("spans the
+full 64px, bottom at y=96") was measured from our own sprites and agreed with
+itself, which is how a wire ended up floating above and across the whole tile,
+covering a character next door.
+
+Facings were also swapped: every _n file held ascending (west-shaped) art and
+every _e file held descending (north-shaped) art, so a north-edge wire drew
+the west sprite. tools/fix_sprite_geometry.py re-seats and re-swaps existing
+art and refuses to write if a file measured slope disagrees with its name --
+run it, do not hand-edit the PNGs. Sprites are now half their old width;
+detail was traded away because the source renders were not kept, so a
+faithful redraw needs a new render pass, not a fix to this pipeline.
+tools/process_sprite_render.py carries the corrected target and prompt.
 
 **The `.tiles` file:** `42/media/deadwire_01.tiles` is what the game loads;
 there is no `.tiles.txt` any more, the game never opened it. The fifth
@@ -108,7 +132,7 @@ no error. Fixed to write 1; our shipped file says 200, legal and loads.
 python scripts/verify_names.py          # exit 0 = everything resolves
 ```
 
-Resolves **308** references against the installed 42.20.4: perks, capabilities,
+Resolves **322** references against the installed 42.20.4: perks, capabilities,
 body parts, `Base.X` items, distributions, icon PNGs, sprite names, sandbox
 options **in both directions**, translation filenames, category and page label
 keys, the tiledef id range, event and sound names, the binary `.tiles` header,
@@ -189,8 +213,8 @@ the player is standing next to it when the server's four-tile bound is checked.
 
 All local, no CI. `run_tests.bat` compiles **all 14** mod `.lua` files
 (`tests/syntax_check.lua`) and stops there on failure, then runs the suite,
-**330 pass**. PowerShell, not Git Bash -- `cmd //c` fails on the path, not the
-tests. `python scripts/verify_names.py` **308 refs**. `python
+**346 pass**. PowerShell, not Git Bash -- `cmd //c` fails on the path, not the
+tests. `python scripts/verify_names.py` **322 refs**. `python
 tools/validate_pack.py` **130 checks**.
 
 The syntax gate enumerates the tree rather than carrying a file list, and
@@ -200,11 +224,11 @@ in `tests/run.lua` is what catches that.
 
 ## Open Issues
 
-Eleven open. #54 closed in Session 25 -- its results live as comments on #54,
-#13 and #52 rather than repeated here.
+Ten open. #54 closed in Session 25, #51 closed in Session 26 (fix not yet
+verified live -- see NEXT IN-GAME SESSION above).
 
-- **Next, in game:** #49 the tin can audio check, #25 Parts C-G of the test
-  plan, #12 one real container sighting.
+- **Next, in game:** verify the #51 sprite fix, #49 the tin can audio check,
+  #25 Parts C-G of the test plan, #12 one real container sighting.
 - **Ready to build, no game needed to start:** #13 electrified deadwire and
   #52 electrified fence -- both were blocked on Tier 3 probes, both answered.
   #53 circuit adjacency, the one genuinely new piece of code Tier 3 needs.
@@ -212,10 +236,57 @@ Eleven open. #54 closed in Session 25 -- its results live as comments on #54,
   building.
 - **Needs a decision from Rob:** #27 bell and reinforced are the same wire with
   a different noise. #45 wire damage, spans, tanglefoot wear.
-- **Art, batch them:** #48 outline box sized to engine bounds not sprite art,
-  #51 wire draws in front of the character, tin_can_rattle.ogg needs mastering.
+- **Art, batch them:** #48 outline box sized to engine bounds, not sprite art
+  -- very likely the same root cause as #51, recheck live before fixing.
+  tin_can_rattle.ogg needs mastering.
 
 ## Recent sessions
+
+### Session 26 (2026-09-10): the wire sprite was drawn wrong, in two ways at once
+
+Rob asked whether #51 (wire draws over the character) had ever actually been
+fixed. It had not -- the issue body says it needs the tilesheet touched, not
+Lua, and nothing had touched the tilesheet.
+
+**Every sprite floated above and across its own tile.** A PZ tile sprite is a
+64x128 cell; the ground it occupies is a diamond in the bottom quarter,
+derived from measuring Tiles1x.floor.pack rather than assumed: every floor
+tile is a 63x32 image pasted at offset (0,96), giving N(32,96) E(64,112)
+S(32,128) W(0,112). Our art spanned the full 64px width and bottomed out at
+y=96 -- the edge of a diamond that does not exist on this engine. That target
+was written into tools/process_sprite_render.py and said outright it came
+from the sprites already in the mod, so the art was checked against itself
+and passed. Measured against vanilla instead: fencing_01_5 (WallN) occupies
+x 30..62, y 59..110, half the cell width, well inside the real diamond.
+
+**Second bug, found only because vanilla was measured to confirm the first.**
+Every _n (north) sprite file held art that ascends left to right, and every
+_e file held art that descends -- backwards. Vanilla's own WallN tiles
+(fencing_01_5/_17/_21) all descend; its WallW tiles (fencing_01_4/_16/_20)
+all ascend, six for six. So a wire built on a north edge has been drawing the
+west-shaped sprite for the mod's entire life.
+
+Ruled out along the way: draw ordering (IsoCell bytecode draws every object
+on a square before any character on it -- cannot explain covering a
+neighbour) and vanilla's WallN/WallW flags (they also set collideN/collideW,
+which would break zombie pass-through, the whole point of a trip wire).
+
+**Fix is tools/fix_sprite_geometry.py.** Halves each sprite (nearest
+neighbour, keeps the 2:1 diagonal, costs pixel detail -- accepted, since the
+source renders were never kept) and re-seats it on the correct edge, swapping
+art between _n/_e files where the measured slope disagrees with the filename.
+Refuses to write if a slope cannot be resolved. Rebuilt the pack and .tiles
+from tools/pz-tilesheet/pz_tilesheet.py, corrected the geometry target and
+Gemini prompt in process_sprite_render.py. 346 tests, 322 names, 130 pack
+checks, all green.
+
+**Not yet confirmed live.** Rob's call, made explicitly: ship with
+placeholder-grade art rather than block launch on a redraw, and ask Workshop
+users if anyone wants to help with better sprites. The geometry fix stands
+regardless of art quality, but nobody has stood next to a wire in-game since
+it landed -- that is the first thing next session does, and per Rule 12
+(green tests are not evidence) it does not count as done until someone has
+looked at it running.
 
 ### Session 25 (2026-09-08): four unknowns answered, and two false readings caught before they shipped
 
