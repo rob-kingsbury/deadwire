@@ -3,31 +3,52 @@
 ```yaml
 project: Deadwire
 description: PZ mod — perimeter trip lines and electric fencing for Project Zomboid (B42+)
-last_session: 26
+last_session: 27
 last_updated: 2026-09-10
-continue_with: "In game, verify the #51 sprite fix: restart PZ fully (pack/tiles only load at boot), place a north wire and a west wire, stand beside each. Confirm the wire sits on the ground along one tile edge, half-tile long, and does not draw over a character on the next square. Then the tin can audio check (#49) and Parts C-G of docs/TEST-PLAN.md (#25)."
-blockers: "#27 and #45 need a decision from Rob. #48 (outline box sizing) is very likely the same root cause as #51 -- recheck it live rather than fixing blind. tin_can_rattle.ogg needs a mastering pass, not another gain boost."
+continue_with: "Another art pass on the wire sprites (Rob's call: correct-but-crude shipped, a real redraw is next). Separately, three behaviour bugs found live and NOT fixed yet: #55 trigger detection has no direction check, #56 camo cannot be reversed and gives no visual tell, #48 confirmed to be the object's engine bounds rather than the sprite (root-caused, not fixed). Still outstanding from before: #49 tin can audio, Parts C-G of docs/TEST-PLAN.md (#25)."
+blockers: "#27 and #45 need a decision from Rob. #48/#55/#56 need actual fixes, scoped below -- none touched yet, this was a look-and-report session."
 ```
 
 ## To Resume
 
 ```
-Deadwire v0.1.1, Session 27. Start from origin/main. Tree clean, 10 issues open.
+Deadwire v0.1.1, Session 28. Start from origin/main. Tree clean, 12 issues open.
 
-Session 26 fixed #51 (closed) -- world sprites were floating above their tile
-at double length, and separately every north/west facing was swapped. Not yet
-verified live; that is the top of NEXT IN-GAME SESSION below.
+Session 26's #51 fix is CONFIRMED live: Rob looked at all four wire types on
+the ground, plain sprites sit correctly on the tile edge and no longer draw
+over him walking past. Per Rule 12, that confirmation is what makes it done --
+the earlier handoff explicitly said the code fix alone did not count.
 
-Session 25 answered all four Tier 3 unknowns (#54, closed) -- results on #54,
-#13, #52. #13 and #52 are unblocked and can start any time, no game needed.
+Same session, in-game testing surfaced three real behaviour bugs, none fixed:
 
-NEXT IN-GAME SESSION: restart PZ fully first (pack/tiles load at boot only),
-then verify #51 -- place a north-facing and a west-facing wire, stand beside
-each, confirm each sits on the ground along one tile edge and does not draw
-over a character on the next square. Ask Rob plainly what he sees; do not
-declare it fixed on my own read of a screenshot. After that: the tin can audio
-check (#49 -- ask him plainly whether he HEARS it) and Parts C-G of
-docs/TEST-PLAN.md (#25).
+- #48 (existing) confirmed root-caused, not fixed: the owner/camo glow
+  outline still floats over the character exactly like the old sprite bug did,
+  because CamoVisibility.lua's setOutlineHighlight() draws off the IsoObject's
+  engine bounds, not the sprite pixels. #51 never touched this -- it is a
+  wholly separate draw path. Needs its own fix, likely renderYOffset or a
+  collision-bounds adjustment on the object.
+- #55 (new): trigger detection has no direction check at all.
+  TriggerHandlers.lua fires on tile occupancy only, so walking parallel to a
+  wire sets it off exactly like crossing it. Needs design input first: what
+  "crossing" means precisely (previous-tile-to-current-tile vector against the
+  wire's edge is the obvious approach).
+- #56 (new): camouflage is one-way. WireActions.lua's isValid() explicitly
+  refuses CamouflageWire once already camouflaged, and no reverse command
+  exists anywhere in the mod. Also no visual difference on the sprite between
+  camouflaged and plain, so the owner can't tell by looking whether it took.
+
+Sprite legibility at the new half-width is rougher than before -- accepted
+tradeoff, Rob's explicit call to ship placeholder-grade art and ask Workshop
+users for help, but NEXT SESSION is a real art pass rather than another
+geometry fix, since the geometry itself is now confirmed correct.
+
+TALK TO ROB IN PLAIN WORDS, no issue numbers, no labels only we understand.
+
+NEXT SESSION: either the art pass (redraw from the corrected
+process_sprite_render.py prompt, needs a live render + tools/fix_sprite_geometry.py
+re-seat), or start on #48/#55/#56 fixes -- Rob's call which comes first. #49
+tin can audio and TEST-PLAN Parts C-G are still outstanding but lower priority
+than the three fresh bugs.
 
 TALK TO ROB IN PLAIN WORDS, no issue numbers, no labels only we understand.
 
@@ -241,6 +262,49 @@ verified live -- see NEXT IN-GAME SESSION above).
   tin_can_rattle.ogg needs mastering.
 
 ## Recent sessions
+
+### Session 27 (2026-09-10): live-verified #51, found three bugs it was never going to fix
+
+Rob restarted PZ and looked. The harness (deadwire_smoke_b) placed one wire of
+each type at his feet rather than hand-building through the crafting menu --
+faster, and it exercises the same createWire path the real UI does.
+
+**Confirmed: plain sprites are fixed.** All four wire types sit on the ground
+along a tile edge, correct length, no longer floating over him as he walked
+past. First live confirmation since #51 landed in Session 26 -- the code fix
+alone was explicitly not counted as done until someone looked at it running.
+
+**Three real bugs, found looking rather than testing for them:**
+
+- The owner/camo glow outline (#48, already open) still floats exactly like
+  the old sprite bug, on wires whose plain sprite is now correct. Traced it:
+  CamoVisibility.lua's setOutline() calls obj:setOutlineHighlight(true), an
+  engine-drawn box keyed to the IsoObject's own collision bounds, not to the
+  sprite bitmap #51 fixed. Two unrelated draw paths sharing one symptom --
+  updated #48 with this, did not touch the code.
+- Trigger detection is direction-blind (#55, new). Reinforced knocks the
+  player back walking parallel to the wire, same as crossing it; tin can
+  breaks the same way. TriggerHandlers.lua only checks tile occupancy, no
+  comparison against the wire's own orientation.
+- Camouflage cannot be undone and carries no visual tell (#56, new).
+  WireActions.lua's isValid() refuses CamouflageWire once already camouflaged,
+  and no reverse command exists. The sprite looks identical camouflaged or not,
+  so the owner has no way to check whether it worked.
+
+One near-miss on the session's own method: my first read of "wires always sit
+on the top-left of the tile, never the right side" looked like a fourth bug.
+It was not -- deadwire_smoke_b hardcodes north=false for every placement, so
+all four test wires shared one facing. Caught before filing anything, but it
+is the same shape as the journal's stale-context trap: a tool's own
+convenience default read as a finding about the mod.
+
+A stack trace also showed in the console during testing -- checked and it is
+PumpsHavePropane-transplant throwing in its own OnContextMenu handler,
+nothing to do with Deadwire.
+
+Rob's call for next session: attempt a real art pass on the sprites (the
+geometry is now confirmed correct, so a redraw has something solid to sit on)
+rather than another fix to this pipeline.
 
 ### Session 26 (2026-09-10): the wire sprite was drawn wrong, in two ways at once
 
