@@ -7,9 +7,22 @@ just a lightened version of the same background. Rust (#8A5A32) has a big
 red-green gap but almost no blue, and the grey tones have no gap at all, so
 neither is touched.
 
-Target geometry comes from the sprites already in the mod: content spans the
-full 64px width and its bottom sits at y=96, which is the low end of the tile's
-2:1 ground edge running (0,64) -> (63,96).
+Target geometry is derived from the game, NOT from the sprites already in the
+mod. Taking it from our own art is how #51 happened: the target below used to
+read "spans the full 64px width, bottom at y=96", the art agreed with it, and
+every wire floated above its own square at double length.
+
+Every floor tile in the game's Tiles1x.floor.pack is a 63x32 image pasted at
+offset (0,96) of a 64x128 cell, so the tile's ground diamond is
+
+    N(32,96)   E(64,112)   S(32,128)   W(0,112)
+
+An edge object sits on ONE edge of that, 32px wide, not 64. Vanilla, measured:
+fencing_01_5/_17/_21 (WallN) occupy x 29..62 and descend left to right;
+fencing_01_4/_16/_20 (WallW) occupy x 1..34 and ascend. Art bottoms out at
+y=110. Match that: _n descends into x 30..62, _e ascends into x 1..33, both
+sitting on y=110. tools/fix_sprite_geometry.py re-seats existing art onto it
+and refuses if a file's measured slope disagrees with its name.
 
 Usage:
     python tools/process_sprite_render.py <render.png> <outdir> <kind>
@@ -38,11 +51,13 @@ with pz_unpack.py from the game's Tiles1x.pack).
 
   Subject: <see per-type line below>
 
-  GEOMETRY, follow exactly: the line runs corner to corner across the image on
-  a 2:1 isometric diagonal, starting at the upper left and descending to the
-  lower right, dropping exactly half as much vertically as it travels
-  horizontally. A stake stands at each end. Nothing is horizontal and nothing
-  is at 45 degrees.
+  GEOMETRY, follow exactly: the line runs on a 2:1 isometric diagonal,
+  starting at the upper left and descending to the lower right, dropping
+  exactly half as much vertically as it travels horizontally. It spans ONE
+  tile edge, so it travels 32 pixels across and drops 16, and it occupies only
+  half the image width. It does NOT cross the whole image corner to corner. A
+  stake stands at each end. Nothing is horizontal and nothing is at 45
+  degrees.
 
   RENDERING: true chunky pixel art on a coarse grid, about 64 pixels wide of
   actual detail, every pixel a large flat square block of solid colour. No
